@@ -20,6 +20,10 @@ async function safeJson(res: Response): Promise<Record<string, unknown>> {
   }
 }
 
+function errorMessage(data: Record<string, unknown>): string | null {
+  return typeof data.error === 'string' ? data.error : null
+}
+
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -42,8 +46,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify({ email, password }),
     })
     const data = await safeJson(res)
-    if (!res.ok) throw new Error(data?.error ?? 'Login failed')
-    setUser(data.user)
+    if (!res.ok) throw new Error(errorMessage(data) ?? 'Login failed')
+    setUser((data.user as User) ?? null)
     router.push('/garden')
   }
 
@@ -60,8 +64,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify({ email, username, password }),
     })
     const data = await safeJson(res)
-    if (!res.ok) throw new Error(data?.error ?? 'Registration failed')
-    setUser(data.user)
+    if (!res.ok) throw new Error(errorMessage(data) ?? 'Registration failed')
+    setUser((data.user as User) ?? null)
     router.push('/garden')
   }
 

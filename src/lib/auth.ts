@@ -46,3 +46,17 @@ export function getTokenFromCookies(request: Request): string | null {
   if (!match) return null
   return match.split('=').slice(1).join('=') || null
 }
+
+/**
+ * Reads the auth cookie from the request, verifies the JWT, and returns the
+ * decoded payload. Returns null if the cookie is missing or the token invalid.
+ */
+export async function getAuthUser(request: Request): Promise<JwtPayload | null> {
+  const token = getTokenFromCookies(request)
+  if (!token) return null
+  try {
+    return await verifyToken(token)
+  } catch {
+    return null
+  }
+}

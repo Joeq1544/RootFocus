@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Suppress browser-default red :invalid styling — we validate manually. */
+input:invalid,
+textarea:invalid,
+select:invalid {
+  box-shadow: none;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -15,4 +22,139 @@
 
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes sway {
+  0%, 100% { transform: rotate(-1.5deg); }
+  50%      { transform: rotate(1.5deg); }
+}
+
+.animate-sway {
+  animation: sway 4s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+@keyframes glow {
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(212, 168, 67, 0.4)); }
+  50%      { filter: drop-shadow(0 0 8px rgba(212, 168, 67, 0.85)); }
+}
+
+.animate-glow {
+  animation: glow 2.8s ease-in-out infinite;
+}
+
+.bg-garden-texture {
+  background-color: #F5F5F0;
+  background-image: radial-gradient(circle at 1px 1px, rgba(107, 66, 38, 0.06) 1px, transparent 0);
+  background-size: 16px 16px;
+}
+
+/* Outdoor garden scene: warm sunlight at top, soft grass-tinted air,
+   warm earth at bottom. Used as the dashboard main background. */
+.bg-garden-scene {
+  background:
+    radial-gradient(ellipse 800px 400px at 90% -100px, rgba(232, 192, 96, 0.35), transparent 60%),
+    linear-gradient(to bottom,
+      #E8F0DC 0%,       /* soft sky-grass */
+      #F5F2E0 35%,      /* warm air */
+      #EDE3CD 70%,      /* dust */
+      #D9C9A8 100%      /* faint earth */
+    );
+}
+
+/* Wooden raised bed — looks like horizontal pine planks with grain.
+   Layered gradients: outer wood frame, inner soil bed. */
+.raised-bed {
+  position: relative;
+  background:
+    /* soil center */
+    radial-gradient(ellipse at center, #6B4226 0%, #5A3620 80%),
+    #6B4226;
+  border-radius: 18px;
+  box-shadow:
+    inset 0 0 0 8px #8B5E3C,           /* wood plank inner edge */
+    inset 0 0 0 9px #6B4226,           /* dark seam */
+    inset 0 0 0 17px #A07550,          /* outer wood plank */
+    inset 0 0 0 18px #5A3620,           /* outermost seam */
+    0 12px 24px -8px rgba(58, 30, 12, 0.55),  /* drop shadow on ground */
+    inset 0 6px 12px rgba(0, 0, 0, 0.4);       /* depth in soil */
+}
+
+/* Soil grain texture inside the bed. */
+.soil-bed {
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 240, 220, 0.08) 0px, transparent 2px),
+    radial-gradient(circle at 70% 60%, rgba(255, 240, 220, 0.06) 0px, transparent 2px),
+    radial-gradient(circle at 20% 80%, rgba(0, 0, 0, 0.15) 0px, transparent 2px),
+    radial-gradient(circle at 85% 30%, rgba(0, 0, 0, 0.12) 0px, transparent 2px),
+    linear-gradient(180deg, #5A3620 0%, #4A2D1C 100%);
+  background-size: 40px 40px, 50px 50px, 35px 35px, 45px 45px, 100% 100%;
+  border-radius: 12px;
+  box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Harvested bed — golden-warm wood and amber soil. */
+.raised-bed.harvested {
+  background:
+    radial-gradient(ellipse at center, #8B6F2C 0%, #6B5320 80%);
+  box-shadow:
+    inset 0 0 0 8px #B89048,
+    inset 0 0 0 9px #6B5320,
+    inset 0 0 0 17px #D4A843,
+    inset 0 0 0 18px #5A4220,
+    0 12px 24px -8px rgba(58, 30, 12, 0.55),
+    inset 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.soil-bed.harvested {
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 240, 200, 0.15) 0px, transparent 2px),
+    radial-gradient(circle at 70% 60%, rgba(255, 240, 200, 0.12) 0px, transparent 2px),
+    linear-gradient(180deg, #6B5320 0%, #5A4218 100%);
+  background-size: 40px 40px, 50px 50px, 100% 100%;
+}
+
+/* Ambient sun rays — used in top-right corner of garden page. */
+@keyframes sunPulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 0.75; }
+}
+.sun-rays { animation: sunPulse 6s ease-in-out infinite; }
+
+/* Floating drift for ambient leaves/butterflies. */
+@keyframes drift {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  25%  { transform: translate(8px, -4px) rotate(8deg); }
+  50%  { transform: translate(-4px, 4px) rotate(-6deg); }
+  75%  { transform: translate(6px, -2px) rotate(4deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+.animate-drift { animation: drift 9s ease-in-out infinite; }
+
+/* Plant grounding shadow — a small ellipse beneath the plant. */
+.plant-shadow {
+  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.35));
+}
+
+/* Floating "+X min" label after a focus session completes. */
+@keyframes float-up {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-56px) scale(1.15); }
+}
+.animate-float-up {
+  animation: float-up 1.5s ease-out forwards;
+  position: fixed;
+  z-index: 60;
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: #2D5016;
+  pointer-events: none;
+  transform-origin: center bottom;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-up { display: none; }
+  .animate-sway { animation: none; }
+  .animate-glow { animation: none; }
+  .animate-drift { animation: none; }
 }

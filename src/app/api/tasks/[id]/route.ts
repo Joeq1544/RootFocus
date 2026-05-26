@@ -1,13 +1,135 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { TaskStatus as PrismaTaskStatus } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
+import { getAuthUser } from '@/lib/auth'
+import { serializeTaskWithSubtasks } from '@/lib/task-serializer'
+import { TaskStatus } from '@/types'
 
 export async function GET() {
   return NextResponse.json({ message: 'not implemented' }, { status: 501 })
 }
 
-export async function PATCH() {
-  return NextResponse.json({ message: 'not implemented' }, { status: 501 })
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  try {
+    const auth = await getAuthUser(request)
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const existing = await prisma.task.findUnique({ where: { id: params.id } })
+    if (!existing || existing.userId !== auth.userId) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+    }
+
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    }
+
+    const input = body as Record<string, unknown>
+    const data: Record<string, unknown> = {}
+
+    if (typeof input.title === 'string' && input.title.trim().length > 0) {
+      data.title = input.title.trim()
+    }
+    if (input.description === null || typeof input.description === 'string') {
+      data.description = input.description
+    }
+    if (input.category === null || typeof input.category === 'string') {
+      data.category = typeof input.category === 'string' ? input.category.trim() || null : null
+    }
+    if (typeof input.priority === 'number') {
+      if (input.priority < 1 || input.priority > 10) {
+        return NextResponse.json({ error: 'Priority must be between 1 and 10' }, { status: 400 })
+      }
+      data.priority = Math.round(input.priority)
+    }
+    if (typeof input.totalFocusMinutes === 'number' && input.totalFocusMinutes >= 0) {
+      data.totalFocusMinutes = Math.round(input.totalFocusMinutes)
+    }
+    if (typeof input.status === 'string' && input.status in TaskStatus) {
+      data.status = input.status as PrismaTaskStatus
+    }
+    if (input.dueDate === null) {
+      data.dueDate = null
+    } else if (typeof input.dueDate === 'string' && input.dueDate.length > 0) {
+      const parsed = new Date(input.dueDate)
+      if (Number.isNaN(parsed.getTime())) {
+        return NextResponse.json({ error: 'Invalid dueDate' }, { status: 400 })
+      }
+      data.dueDate = parsed
+    }
+    if (input.lastWateredAt === null) {
+      data.lastWateredAt = null
+    } else if (typeof input.lastWateredAt === 'string') {
+      const parsed = new Date(input.lastWateredAt)
+      if (!Number.isNaN(parsed.getTime())) data.lastWateredAt = parsed
+    }
+    if (input.parentTaskId === null) {
+      data.parentTaskId = null
+    } else if (typeof input.parentTaskId === 'string' && input.parentTaskId.length > 0) {
+      if (input.parentTaskId === params.id) {
+        return NextResponse.json({ error: 'A task cannot be its own parent' }, { status: 400 })
+      }
+      const parent = await prisma.task.findUnique({ where: { id: input.parentTaskId } })
+      if (!parent || parent.userId !== auth.userId) {
+        return NextResponse.json({ error: 'Parent task not found' }, { status: 403 })
+      }
+      data.parentTaskId = input.parentTaskId
+    }
+
+    await prisma.task.update({ where: { id: params.id }, data })
+    const updated = await prisma.task.findUnique({
+      where: { id: params.id },
+      include: { subtasks: true },
+    })
+    if (!updated) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+    }
+    return NextResponse.json({ task: serializeTaskWithSubtasks(updated) })
+  } catch (err) {
+    console.error('[PATCH /api/tasks/:id]', err)
+    const message = err instanceof Error ? err.message : 'Internal server error'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
 
-export async function DELETE() {
-  return NextResponse.json({ message: 'not implemented' }, { status: 501 })
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  try {
+    const auth = await getAuthUser(request)
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const existing = await prisma.task.findUnique({ where: { id: params.id } })
+    if (!existing || existing.userId !== auth.userId) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+    }
+
+    await prisma.$transaction([
+      prisma.focusSession.deleteMany({
+        where: {
+          OR: [
+            { taskId: params.id },
+            { task: { parentTaskId: params.id } },
+          ],
+        },
+      }),
+      prisma.task.deleteMany({ where: { parentTaskId: params.id } }),
+      prisma.task.delete({ where: { id: params.id } }),
+    ])
+    return new Response(null, { status: 204 })
+  } catch (err) {
+    console.error('[DELETE /api/tasks/:id]', err)
+    const message = err instanceof Error ? err.message : 'Internal server error'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }

@@ -47,3 +47,43 @@ export interface FocusSession {
   completedAt: string
   notes: string | null
 }
+
+export interface TaskWithHealth extends Task {
+  health: PlantHealth
+  subtasks: TaskWithHealth[]
+}
+
+export interface WateringStreak {
+  id: string
+  userId: string
+  currentStreak: number
+  longestStreak: number
+  lastWateredDate: string | null
+}
+
+export type TimerPhase = 'IDLE' | 'RUNNING' | 'PAUSED' | 'BREAK' | 'COMPLETED'
+
+export interface SessionCreateInput {
+  taskId: string
+  durationMinutes: number
+  notes?: string
+}
+
+export interface SessionCreateResult {
+  session: FocusSession
+  task: TaskWithHealth
+  streak: WateringStreak
+}
+
+export interface SessionStats {
+  totalMinutes: number
+  totalSessions: number
+  currentStreak: number
+  longestStreak: number
+  dailyData: { date: string; minutes: number; sessions: number }[]
+  minutesByCategory: { category: string; minutes: number }[]
+}
+
+export interface FocusSessionWithTask extends FocusSession {
+  task: { title: string; category: string | null; status: TaskStatus }
+}
