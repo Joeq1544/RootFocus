@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { title, description, category, priority, dueDate, parentTaskId } =
+  const { title, description, priority, dueDate, parentTaskId, plotId, isPot } =
     body as Record<string, unknown>
 
   if (typeof title !== 'string' || title.trim().length === 0) {
@@ -54,7 +54,9 @@ export async function POST(request: NextRequest) {
     priorityValue = Math.round(priority)
   }
 
+  // Parent task: subtask inherits plotId from parent
   let parentId: string | null = null
+  let inheritedPlotId: string | null = null
   if (parentTaskId !== undefined && parentTaskId !== null && parentTaskId !== '') {
     if (typeof parentTaskId !== 'string') {
       return NextResponse.json({ error: 'Invalid parentTaskId' }, { status: 400 })
@@ -64,6 +66,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Parent task not found' }, { status: 403 })
     }
     parentId = parentTaskId
+    inheritedPlotId = parent.plotId
+  }
+
+  // Plot id: top-level tasks need a valid plot; subtasks inherit from parent
+  let finalPlotId: string | null = inheritedPlotId
+  if (parentId === null) {
+    if (typeof plotId !== 'string' || plotId.length === 0) {
+      return NextResponse.json({ error: 'plotId is required for top-level tasks' }, { status: 400 })
+    }
+    const plot = await prisma.plot.findUnique({ where: { id: plotId } })
+    if (!plot || plot.userId !== auth.userId) {
+      return NextResponse.json({ error: 'Plot not found' }, { status: 403 })
+    }
+    finalPlotId = plotId
   }
 
   let dueDateValue: Date | null = null
@@ -75,13 +91,16 @@ export async function POST(request: NextRequest) {
     dueDateValue = parsed
   }
 
+  const isPotValue = isPot === true
+
   try {
     const task = await prisma.task.create({
       data: {
         userId: auth.userId,
         title: title.trim(),
         description: typeof description === 'string' && description.length > 0 ? description : null,
-        category: typeof category === 'string' && category.trim().length > 0 ? category.trim() : null,
+        plotId: finalPlotId,
+        isPot: isPotValue,
         priority: priorityValue,
         dueDate: dueDateValue,
         parentTaskId: parentId,

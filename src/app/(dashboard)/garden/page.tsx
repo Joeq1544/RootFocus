@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 import { serializeTaskWithSubtasks } from '@/lib/task-serializer'
+import { serializePlot } from '@/lib/plot-serializer'
+import { organizePlots } from '@/lib/garden-organize'
 import { getGreeting } from '@/lib/format'
 import { GardenClient } from '@/components/garden/GardenClient'
 
@@ -23,8 +25,9 @@ export default async function GardenPage() {
     where: { id: userId },
     include: {
       streaks: true,
+      plots: { orderBy: { order: 'asc' } },
       tasks: {
-        where: { parentTaskId: null },
+        where: { parentTaskId: null, status: { not: 'COMPLETED' } },
         include: { subtasks: true },
       },
     },
@@ -32,9 +35,9 @@ export default async function GardenPage() {
 
   if (!user) redirect('/login')
 
-  const initialTasks = user.tasks
-    .map(serializeTaskWithSubtasks)
-    .sort((a, b) => b.health.urgencyScore - a.health.urgencyScore)
+  const allTasks = user.tasks.map(serializeTaskWithSubtasks)
+  const plots = user.plots.map(serializePlot)
+  const initialPlots = organizePlots(plots, allTasks)
 
   const streak = user.streaks[0] ?? { currentStreak: 0, longestStreak: 0 }
 
@@ -69,7 +72,7 @@ export default async function GardenPage() {
         </div>
       </header>
 
-      <GardenClient initialTasks={initialTasks} />
+      <GardenClient initialPlots={initialPlots} />
     </div>
   )
 }

@@ -1,11 +1,14 @@
 import type { Task as PrismaTask } from '@prisma/client'
 import { Task, TaskStatus, TaskWithHealth } from '@/types'
-import { calculatePlantHealth } from './plant-health'
+import { calculatePlantHealth, calculatePotHealth } from './plant-health'
 
 /**
  * Converts a Prisma Task row (with Date objects) into the API-shape Task,
  * computes its PlantHealth, and attaches subtasks. Use this everywhere a
  * Task crosses the server → client boundary.
+ *
+ * Pots (isPot=true) compute their health from subtask health, not their own
+ * focus-minute counter.
  */
 export function serializeTask(
   task: PrismaTask,
@@ -17,6 +20,8 @@ export function serializeTask(
     title: task.title,
     description: task.description,
     category: task.category,
+    plotId: task.plotId,
+    isPot: task.isPot,
     priority: task.priority,
     status: task.status as TaskStatus,
     parentTaskId: task.parentTaskId,
@@ -26,7 +31,12 @@ export function serializeTask(
     createdAt: task.createdAt.toISOString(),
     updatedAt: task.updatedAt.toISOString(),
   }
-  return { ...apiTask, subtasks, health: calculatePlantHealth(apiTask) }
+
+  const health = task.isPot
+    ? calculatePotHealth(subtasks.map((s) => s.health))
+    : calculatePlantHealth(apiTask)
+
+  return { ...apiTask, subtasks, health }
 }
 
 /**

@@ -29,6 +29,8 @@ export interface Task {
   title: string
   description: string | null
   category: string | null
+  plotId: string | null
+  isPot: boolean
   priority: number
   status: TaskStatus
   parentTaskId: string | null
@@ -37,6 +39,22 @@ export interface Task {
   dueDate: string | null
   createdAt: string
   updatedAt: string
+}
+
+export interface Plot {
+  id: string
+  userId: string
+  name: string
+  color: string
+  icon: string
+  order: number
+  gridSnap: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PlotWithTasks extends Plot {
+  tasks: TaskWithHealth[]
 }
 
 export interface FocusSession {

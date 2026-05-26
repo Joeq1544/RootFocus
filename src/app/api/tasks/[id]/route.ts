@@ -83,6 +83,38 @@ export async function PATCH(
       data.parentTaskId = input.parentTaskId
     }
 
+    // Plot move (top-level tasks only)
+    if (typeof input.plotId === 'string' && input.plotId.length > 0) {
+      if (existing.parentTaskId !== null) {
+        return NextResponse.json({ error: 'Subtasks inherit their parent\'s plot and cannot be moved directly' }, { status: 400 })
+      }
+      const plot = await prisma.plot.findUnique({ where: { id: input.plotId } })
+      if (!plot || plot.userId !== auth.userId) {
+        return NextResponse.json({ error: 'Plot not found' }, { status: 403 })
+      }
+      data.plotId = input.plotId
+      // Cascade plot move to subtasks so they stay grouped with their pot
+      await prisma.task.updateMany({
+        where: { parentTaskId: params.id },
+        data: { plotId: input.plotId },
+      })
+    }
+
+    // Pot conversion
+    if (typeof input.isPot === 'boolean') {
+      if (input.isPot === false) {
+        // Demoting pot → plant: only allowed if no subtasks
+        const subCount = await prisma.task.count({ where: { parentTaskId: params.id } })
+        if (subCount > 0) {
+          return NextResponse.json(
+            { error: 'Cannot demote a pot that still has plants inside it' },
+            { status: 400 },
+          )
+        }
+      }
+      data.isPot = input.isPot
+    }
+
     await prisma.task.update({ where: { id: params.id }, data })
     const updated = await prisma.task.findUnique({
       where: { id: params.id },

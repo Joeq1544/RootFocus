@@ -6,15 +6,16 @@ import { PlantSVG } from './PlantSVG'
 import { PlantStatusBadge } from './PlantStatusBadge'
 import { WaterDropIndicator } from './WaterDropIndicator'
 import { useTimerContext } from '@/components/providers/TimerContext'
-import { formatRelativeTime } from '@/lib/format'
+import { formatRelativeTime, formatDateGroup } from '@/lib/format'
 
 interface PlantProps {
   task: TaskWithHealth
   onComplete: (taskId: string) => void
   onDelete: (taskId: string) => void
+  onConvertToPot?: (taskId: string) => void
 }
 
-export function Plant({ task, onComplete, onDelete }: PlantProps) {
+export function Plant({ task, onComplete, onDelete, onConvertToPot }: PlantProps) {
   const [isOpen, setIsOpen] = useState(false)
   const { openTimer } = useTimerContext()
 
@@ -40,9 +41,9 @@ export function Plant({ task, onComplete, onDelete }: PlantProps) {
         </span>
       </button>
 
-      {/* Hover/click popover */}
+      {/* Hover/click popover — left-0 so it never slides under the sidebar */}
       <div
-        className={`absolute left-1/2 top-full z-40 mt-2 w-64 -translate-x-1/2 rounded-2xl border border-soil/15 bg-white p-4 shadow-2xl shadow-soil/40 transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100'}`}
+        className={`absolute left-0 top-full z-50 mt-2 w-64 rounded-2xl border border-soil/15 bg-white p-4 shadow-2xl shadow-soil/40 transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-2">
@@ -60,6 +61,22 @@ export function Plant({ task, onComplete, onDelete }: PlantProps) {
         </div>
 
         <p className="mt-1 text-xs text-soil/60">{formatRelativeTime(task.lastWateredAt)}</p>
+
+        {task.dueDate && (
+          <p className="mt-1 text-xs text-soil/60">
+            Due {formatDateGroup(task.dueDate.slice(0, 10))}
+          </p>
+        )}
+
+        {onConvertToPot && task.subtasks.length === 0 && (
+          <button
+            type="button"
+            onClick={(e) => handleAction(e, () => onConvertToPot(task.id))}
+            className="mt-3 w-full rounded-lg border border-soil/20 px-3 py-1.5 text-[11px] font-medium text-soil/70 transition-colors hover:border-soil/40 hover:text-soil"
+          >
+            Convert to Pot &middot; break into smaller plants
+          </button>
+        )}
 
         <div className="mt-4 flex gap-2">
           <button

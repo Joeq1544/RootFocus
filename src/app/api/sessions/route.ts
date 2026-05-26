@@ -76,6 +76,8 @@ export async function POST(request: NextRequest) {
       title: existing.title,
       description: existing.description,
       category: existing.category,
+      plotId: existing.plotId,
+      isPot: existing.isPot,
       priority: existing.priority,
       status: existing.status as TaskStatus,
       parentTaskId: existing.parentTaskId,

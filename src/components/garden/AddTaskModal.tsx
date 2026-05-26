@@ -1,7 +1,6 @@
 'use client'
 
-import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { TaskWithHealth } from '@/types'
+import { FormEvent, useEffect, useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -9,56 +8,48 @@ import { Button } from '@/components/ui/Button'
 export interface AddTaskInput {
   title: string
   description?: string
-  category?: string
   priority: number
   dueDate?: string
+  plotId?: string
   parentTaskId?: string
+  isPot?: boolean
 }
 
 interface AddTaskModalProps {
   isOpen: boolean
   onClose: () => void
   onSubmit: (input: AddTaskInput) => Promise<void>
-  parentTasks: TaskWithHealth[]
-  defaultParentTaskId?: string
+  mode: 'plant' | 'pot'
+  plotId?: string         // when creating directly into a plot (top-level)
+  parentTaskId?: string   // when creating a subtask inside a pot
+  potDueDate?: string     // ISO date string of the parent pot (for subtask due-date ceiling)
 }
 
 export function AddTaskModal({
   isOpen,
   onClose,
   onSubmit,
-  parentTasks,
-  defaultParentTaskId,
+  mode,
+  plotId,
+  parentTaskId,
+  potDueDate,
 }: AddTaskModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('')
   const [priority, setPriority] = useState(5)
   const [dueDate, setDueDate] = useState('')
-  const [parentTaskId, setParentTaskId] = useState<string>('')
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const categorySuggestions = useMemo(() => {
-    const set = new Set<string>()
-    for (const t of parentTasks) {
-      if (t.category) set.add(t.category)
-    }
-    return Array.from(set)
-  }, [parentTasks])
-
-  // Reset form when opened, applying default parent if provided
   useEffect(() => {
     if (isOpen) {
       setTitle('')
       setDescription('')
-      setCategory('')
       setPriority(5)
       setDueDate('')
-      setParentTaskId(defaultParentTaskId ?? '')
       setError('')
     }
-  }, [isOpen, defaultParentTaskId])
+  }, [isOpen])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -69,15 +60,33 @@ export function AddTaskModal({
       return
     }
 
+    if (dueDate) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const due = new Date(dueDate + 'T00:00:00')
+      if (due <= today) {
+        setError('Due date must be after today')
+        return
+      }
+      if (potDueDate) {
+        const potDue = new Date(potDueDate.slice(0, 10) + 'T00:00:00')
+        if (due > potDue) {
+          setError(`Due date must be on or before the pot's due date (${potDueDate.slice(0, 10)})`)
+          return
+        }
+      }
+    }
+
     setIsSubmitting(true)
     try {
       await onSubmit({
         title: title.trim(),
         description: description.trim() || undefined,
-        category: category.trim() || undefined,
         priority,
         dueDate: dueDate || undefined,
-        parentTaskId: parentTaskId || undefined,
+        plotId,
+        parentTaskId,
+        isPot: mode === 'pot',
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -86,15 +95,18 @@ export function AddTaskModal({
     }
   }
 
+  const titleText = mode === 'pot' ? 'New pot' : 'New plant'
+  const submitLabel = isSubmitting ? 'Planting…' : mode === 'pot' ? 'Place pot' : 'Plant'
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Plant a new task">
+    <Modal isOpen={isOpen} onClose={onClose} title={titleText}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         <Input
           label="Title"
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="What do you want to grow?"
+          placeholder={mode === 'pot' ? 'What\'s the big project?' : 'What do you want to grow?'}
           autoFocus
         />
 
@@ -112,77 +124,42 @@ export function AddTaskModal({
           />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="task-category" className="text-sm font-medium text-soil">
-            Category
-          </label>
-          <input
-            id="task-category"
-            list="task-category-suggestions"
-            type="text"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="e.g. Work, Personal"
-            className="w-full rounded-lg border border-soil/30 bg-white/80 px-4 py-2.5 text-soil placeholder-soil/40 transition-colors duration-200 focus:border-forest focus:outline-none focus:ring-2 focus:ring-forest/20"
-          />
-          <datalist id="task-category-suggestions">
-            {categorySuggestions.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <label htmlFor="task-priority" className="text-sm font-medium text-soil">
-              Priority
-            </label>
-            <span className="text-sm font-semibold text-forest">{priority} / 10</span>
-          </div>
-          <input
-            id="task-priority"
-            type="range"
-            min={1}
-            max={10}
-            step={1}
-            value={priority}
-            onChange={(e) => setPriority(Number(e.target.value))}
-            className="w-full accent-forest"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
+        {/* Plants get priority + due date; Pots get due date only */}
+        {mode === 'plant' && (
           <div className="flex flex-col gap-1">
-            <label htmlFor="task-due" className="text-sm font-medium text-soil">
-              Due date
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="task-priority" className="text-sm font-medium text-soil">
+                Priority
+              </label>
+              <span className="text-sm font-semibold text-forest">{priority} / 10</span>
+            </div>
             <input
-              id="task-due"
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="w-full rounded-lg border border-soil/30 bg-white/80 px-3 py-2.5 text-sm text-soil transition-colors duration-200 focus:border-forest focus:outline-none focus:ring-2 focus:ring-forest/20"
+              id="task-priority"
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={priority}
+              onChange={(e) => setPriority(Number(e.target.value))}
+              className="w-full accent-forest"
             />
           </div>
+        )}
 
-          <div className="flex flex-col gap-1">
-            <label htmlFor="task-parent" className="text-sm font-medium text-soil">
-              Parent task
-            </label>
-            <select
-              id="task-parent"
-              value={parentTaskId}
-              onChange={(e) => setParentTaskId(e.target.value)}
-              className="w-full rounded-lg border border-soil/30 bg-white/80 px-3 py-2.5 text-sm text-soil transition-colors duration-200 focus:border-forest focus:outline-none focus:ring-2 focus:ring-forest/20"
-            >
-              <option value="">None</option>
-              {parentTasks.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.title}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="task-due" className="text-sm font-medium text-soil">
+            Due date <span className="text-soil/50 font-normal">(optional)</span>
+          </label>
+          <input
+            id="task-due"
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className="w-full rounded-lg border border-soil/30 bg-white/80 px-3 py-2.5 text-sm text-soil transition-colors duration-200 focus:border-forest focus:outline-none focus:ring-2 focus:ring-forest/20"
+          />
+          {potDueDate && (
+            <p className="text-[11px] text-soil/50">Must be on or before {potDueDate.slice(0, 10)}</p>
+          )}
         </div>
 
         {error && (
@@ -198,7 +175,7 @@ export function AddTaskModal({
             Cancel
           </button>
           <Button type="submit" variant="primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Planting…' : 'Plant'}
+            {submitLabel}
           </Button>
         </div>
       </form>

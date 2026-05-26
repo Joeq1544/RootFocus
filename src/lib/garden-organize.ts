@@ -1,94 +1,32 @@
-import { TaskStatus, TaskWithHealth } from '@/types'
-
-export interface Plot {
-  id: string
-  title: string
-  parentTask?: TaskWithHealth
-  tasks: TaskWithHealth[]
-  maxUrgency: number
-  variant: 'active' | 'harvested'
-}
-
-const HARVESTED_ID = '__harvested__'
-const UNCATEGORIZED = 'Uncategorized'
+import { Plot, PlotWithTasks, TaskStatus, TaskWithHealth } from '@/types'
 
 /**
- * Groups a flat list of top-level tasks (each with `subtasks`) into garden plots.
+ * Groups top-level (non-completed, parentless) tasks into their plots,
+ * sorted by Plot.order ascending. Completed tasks are filtered out — they
+ * live in the Trophy Room, not the garden.
  *
- * - All COMPLETED tasks across the tree are gathered into a single trailing
- *   "Harvested" plot.
- * - Top-level active tasks that have any subtask become their own parent plot,
- *   containing their non-completed subtasks.
- * - Remaining childless top-level tasks group by category (or "Uncategorized").
- * - Active plots are sorted by max urgency descending; Harvested is always last.
+ * Pots and Plants both surface as top-level entries within a plot.
+ * Subtasks are nested inside their parent pot (already serialized).
  */
-export function organizeIntoPlots(tasks: TaskWithHealth[]): Plot[] {
-  const harvested: TaskWithHealth[] = []
-  const activeTopLevel: TaskWithHealth[] = []
+export function organizePlots(plots: Plot[], tasks: TaskWithHealth[]): PlotWithTasks[] {
+  const byPlot = new Map<string, TaskWithHealth[]>()
 
   for (const task of tasks) {
-    if (task.health.status === TaskStatus.COMPLETED) {
-      harvested.push(task)
-    } else {
-      activeTopLevel.push(task)
-    }
-    for (const sub of task.subtasks) {
-      if (sub.health.status === TaskStatus.COMPLETED) harvested.push(sub)
-    }
+    if (task.status === TaskStatus.COMPLETED) continue
+    if (task.parentTaskId !== null) continue
+    if (!task.plotId) continue
+    const list = byPlot.get(task.plotId) ?? []
+    list.push(task)
+    byPlot.set(task.plotId, list)
   }
 
-  const parentPlots: Plot[] = []
-  const categoryGroups = new Map<string, TaskWithHealth[]>()
-
-  for (const task of activeTopLevel) {
-    const hasAnySubtasks = task.subtasks.length > 0
-    if (hasAnySubtasks) {
-      const activeSubs = task.subtasks.filter(
-        (s) => s.health.status !== TaskStatus.COMPLETED,
-      )
-      parentPlots.push({
-        id: task.id,
-        title: task.title,
-        parentTask: task,
-        tasks: activeSubs,
-        maxUrgency: maxUrgency([task, ...activeSubs]),
-        variant: 'active',
-      })
-    } else {
-      const category = task.category?.trim() || UNCATEGORIZED
-      const list = categoryGroups.get(category) ?? []
-      list.push(task)
-      categoryGroups.set(category, list)
-    }
-  }
-
-  const categoryPlots: Plot[] = Array.from(categoryGroups.entries()).map(
-    ([category, list]) => ({
-      id: `category:${category}`,
-      title: category,
-      tasks: list,
-      maxUrgency: maxUrgency(list),
-      variant: 'active',
-    }),
-  )
-
-  const activePlots = [...parentPlots, ...categoryPlots].sort(
-    (a, b) => b.maxUrgency - a.maxUrgency,
-  )
-
-  if (harvested.length > 0) {
-    activePlots.push({
-      id: HARVESTED_ID,
-      title: 'Harvested',
-      tasks: harvested,
-      maxUrgency: 0,
-      variant: 'harvested',
-    })
-  }
-
-  return activePlots
-}
-
-function maxUrgency(tasks: TaskWithHealth[]): number {
-  return tasks.reduce((m, t) => Math.max(m, t.health.urgencyScore), 0)
+  return plots
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .map((plot) => ({
+      ...plot,
+      tasks: (byPlot.get(plot.id) ?? []).sort(
+        (a, b) => b.health.urgencyScore - a.health.urgencyScore,
+      ),
+    }))
 }
