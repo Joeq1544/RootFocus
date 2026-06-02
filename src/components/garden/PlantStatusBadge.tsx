@@ -7,12 +7,12 @@ interface PlantStatusBadgeProps {
 
 const statusClasses: Record<TaskStatus, string> = {
   [TaskStatus.SEED]: 'bg-soil/20 text-soil',
-  [TaskStatus.SPROUT]: 'bg-forest-light/20 text-forest',
-  [TaskStatus.GROWING]: 'bg-forest/20 text-forest',
-  [TaskStatus.BLOOMING]: 'bg-sunrise/30 text-soil',
+  [TaskStatus.SPROUT]: 'bg-grass/25 text-forest',
+  [TaskStatus.GROWING]: 'bg-grass/30 text-forest',
+  [TaskStatus.BLOOMING]: 'bg-sunrise/40 text-bark',
   [TaskStatus.WILTING]: 'bg-orange-200 text-orange-800',
   [TaskStatus.DEAD]: 'bg-soil-light/30 text-soil-light',
-  [TaskStatus.COMPLETED]: 'bg-gradient-to-r from-sunrise to-sunrise-light text-soil',
+  [TaskStatus.COMPLETED]: 'bg-sunrise text-bark',
 }
 
 const statusLabels: Record<TaskStatus, string> = {
@@ -28,7 +28,7 @@ const statusLabels: Record<TaskStatus, string> = {
 export function PlantStatusBadge({ status, className = '' }: PlantStatusBadgeProps) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${statusClasses[status]} ${className}`}
+      className={`inline-flex items-center rounded-[3px] px-2 py-0.5 font-pixel text-[10px] font-bold uppercase tracking-wide shadow-[inset_0_0_0_1px_rgba(58,40,23,0.2)] ${statusClasses[status]} ${className}`}
     >
       {statusLabels[status]}
     </span>

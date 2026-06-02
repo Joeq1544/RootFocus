@@ -39,8 +39,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { title, description, priority, dueDate, parentTaskId, plotId, isPot } =
-    body as Record<string, unknown>
+  const {
+    title,
+    description,
+    priority,
+    dueDate,
+    parentTaskId,
+    plotId,
+    isPot,
+    progressType,
+    estimatedMinutes,
+    targetReps,
+    completedReps,
+  } = body as Record<string, unknown>
 
   if (typeof title !== 'string' || title.trim().length === 0) {
     return NextResponse.json({ error: 'Title is required' }, { status: 400 })
@@ -93,6 +104,42 @@ export async function POST(request: NextRequest) {
 
   const isPotValue = isPot === true
 
+  // Progress type fields — only meaningful for non-pot tasks
+  let progressTypeValue: 'TIME' | 'REPS' = 'TIME'
+  let estimatedMinutesValue: number | null = null
+  let targetRepsValue: number | null = null
+  let completedRepsValue = 0
+
+  if (!isPotValue) {
+    if (progressType === 'REPS' || progressType === 'TIME') {
+      progressTypeValue = progressType
+    }
+
+    if (estimatedMinutes !== undefined && estimatedMinutes !== null) {
+      if (typeof estimatedMinutes !== 'number' || estimatedMinutes < 1 || !Number.isFinite(estimatedMinutes)) {
+        return NextResponse.json({ error: 'estimatedMinutes must be a positive number' }, { status: 400 })
+      }
+      estimatedMinutesValue = Math.round(estimatedMinutes)
+    }
+
+    if (progressTypeValue === 'REPS') {
+      if (typeof targetReps !== 'number' || !Number.isInteger(targetReps) || targetReps < 1) {
+        return NextResponse.json({ error: 'targetReps must be a positive integer' }, { status: 400 })
+      }
+      targetRepsValue = targetReps
+
+      if (completedReps !== undefined && completedReps !== null) {
+        if (typeof completedReps !== 'number' || !Number.isInteger(completedReps) || completedReps < 0) {
+          return NextResponse.json({ error: 'completedReps must be a non-negative integer' }, { status: 400 })
+        }
+        if (completedReps > targetRepsValue) {
+          return NextResponse.json({ error: 'completedReps cannot exceed targetReps' }, { status: 400 })
+        }
+        completedRepsValue = completedReps
+      }
+    }
+  }
+
   try {
     const task = await prisma.task.create({
       data: {
@@ -106,6 +153,10 @@ export async function POST(request: NextRequest) {
         parentTaskId: parentId,
         status: 'SEED',
         totalFocusMinutes: 0,
+        progressType: progressTypeValue,
+        estimatedMinutes: estimatedMinutesValue,
+        targetReps: targetRepsValue,
+        completedReps: completedRepsValue,
       },
     })
 

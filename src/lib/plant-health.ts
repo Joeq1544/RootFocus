@@ -1,4 +1,6 @@
-import { Task, TaskStatus, PlantHealth } from '@/types'
+import { Task, TaskStatus, PlantHealth, ProgressType } from '@/types'
+
+const DEFAULT_TIME_TARGET_MINUTES = 120
 
 /**
  * Computes a Pot's aggregate health from its subtasks' health.
@@ -33,11 +35,20 @@ export function calculatePotHealth(subtaskHealth: PlantHealth[]): PlantHealth {
 /**
  * Derives the visual/health state of a plant from its associated task data.
  *
- * Growth scale: 0 min = 0%, 120 min = 100% (capped).
+ * Growth (TIME): totalFocusMinutes / estimatedMinutes (defaults to 120 if null).
+ * Growth (REPS): completedReps / targetReps.
  * Urgency scale: priority × (hours since last watered / 24), capped at 10.
  */
 export function calculatePlantHealth(task: Task): PlantHealth {
-  const growthPercent = Math.min(100, (task.totalFocusMinutes / 120) * 100)
+  const growthPercent =
+    task.progressType === ProgressType.REPS
+      ? task.targetReps && task.targetReps > 0
+        ? Math.min(100, (task.completedReps / task.targetReps) * 100)
+        : 0
+      : Math.min(
+          100,
+          (task.totalFocusMinutes / (task.estimatedMinutes ?? DEFAULT_TIME_TARGET_MINUTES)) * 100,
+        )
 
   const now = Date.now()
   const lastWatered = task.lastWateredAt ? new Date(task.lastWateredAt).getTime() : null

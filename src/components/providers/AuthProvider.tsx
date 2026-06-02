@@ -4,12 +4,21 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { User } from '@/types'
 
+export interface RegisterInput {
+  name: string
+  username: string
+  email: string
+  password: string
+  avatar?: string | null
+}
+
 interface AuthContextValue {
   user: User | null
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
-  register: (email: string, username: string, password: string) => Promise<void>
+  register: (input: RegisterInput) => Promise<void>
+  setUser: (user: User) => void
 }
 
 async function safeJson(res: Response): Promise<Record<string, unknown>> {
@@ -57,11 +66,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/login')
   }
 
-  async function register(email: string, username: string, password: string) {
+  async function register(input: RegisterInput) {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, username, password }),
+      body: JSON.stringify(input),
     })
     const data = await safeJson(res)
     if (!res.ok) throw new Error(errorMessage(data) ?? 'Registration failed')
@@ -70,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, register }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, register, setUser }}>
       {children}
     </AuthContext.Provider>
   )

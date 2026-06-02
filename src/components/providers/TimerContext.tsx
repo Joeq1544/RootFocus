@@ -12,12 +12,21 @@ import {
 import ReactDOM from 'react-dom'
 import { FocusTimer } from '@/components/timer/FocusTimer'
 
-type SessionHandler = (data: { taskId: string; durationMinutes: number }) => Promise<void>
+export interface TimerRepInfo {
+  targetReps: number
+  completedReps: number
+}
+
+type SessionHandler = (data: {
+  taskId: string
+  durationMinutes: number
+  completedReps?: number
+}) => Promise<void>
 
 interface TimerContextValue {
   activeTaskId: string | null
   isModalOpen: boolean
-  openTimer: (taskId: string, taskTitle: string) => void
+  openTimer: (taskId: string, taskTitle: string, repInfo?: TimerRepInfo) => void
   closeModal: () => void
   registerSessionHandler: (fn: SessionHandler) => void
 }
@@ -37,6 +46,7 @@ export function useTimerContext() {
 export function TimerContextProvider({ children }: { children: ReactNode }) {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
   const [activeTaskTitle, setActiveTaskTitle] = useState('')
+  const [activeRepInfo, setActiveRepInfo] = useState<TimerRepInfo | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const sessionHandlerRef = useRef<SessionHandler>(() => Promise.resolve())
@@ -44,11 +54,15 @@ export function TimerContextProvider({ children }: { children: ReactNode }) {
   // Wait for document to be available (portal target)
   useEffect(() => setMounted(true), [])
 
-  const openTimer = useCallback((taskId: string, taskTitle: string) => {
-    setActiveTaskId(taskId)
-    setActiveTaskTitle(taskTitle)
-    setIsModalOpen(true)
-  }, [])
+  const openTimer = useCallback(
+    (taskId: string, taskTitle: string, repInfo?: TimerRepInfo) => {
+      setActiveTaskId(taskId)
+      setActiveTaskTitle(taskTitle)
+      setActiveRepInfo(repInfo ?? null)
+      setIsModalOpen(true)
+    },
+    [],
+  )
 
   const closeModal = useCallback(() => setIsModalOpen(false), [])
 
@@ -57,7 +71,7 @@ export function TimerContextProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const handleSessionComplete = useCallback(
-    async (data: { taskId: string; durationMinutes: number }) => {
+    async (data: { taskId: string; durationMinutes: number; completedReps?: number }) => {
       await sessionHandlerRef.current(data)
     },
     [],
@@ -79,13 +93,15 @@ export function TimerContextProvider({ children }: { children: ReactNode }) {
 
           {/* Modal card — kept mounted so timer survives close */}
           <div
-            className="fixed left-1/2 top-1/2 z-50 w-80 -translate-x-1/2 -translate-y-1/2 rounded-3xl bg-mist p-8 shadow-2xl shadow-soil/30"
+            className="pixel-panel fixed left-1/2 top-1/2 z-50 w-80 -translate-x-1/2 -translate-y-1/2 p-8"
             style={{ display: isModalOpen ? 'block' : 'none' }}
             onClick={(e) => e.stopPropagation()}
           >
             <FocusTimer
+              key={activeTaskId}
               taskId={activeTaskId}
               taskTitle={activeTaskTitle}
+              repInfo={activeRepInfo}
               onSessionComplete={handleSessionComplete}
               onClose={closeModal}
             />
@@ -96,7 +112,7 @@ export function TimerContextProvider({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
-              className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full bg-forest px-4 py-2.5 shadow-lg transition-transform hover:scale-105"
+              className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-[4px] bg-forest px-4 py-2.5 font-pixel shadow-pixel transition-transform active:translate-y-0.5"
             >
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sunrise opacity-75" />

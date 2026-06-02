@@ -8,6 +8,11 @@ export enum TaskStatus {
   COMPLETED = 'COMPLETED',
 }
 
+export enum ProgressType {
+  TIME = 'TIME',
+  REPS = 'REPS',
+}
+
 export interface PlantHealth {
   status: TaskStatus
   growthPercent: number
@@ -19,6 +24,9 @@ export interface User {
   id: string
   email: string
   username: string
+  name: string | null
+  avatar: string | null
+  usernameChangedAt: string | null
   createdAt: string
   updatedAt: string
 }
@@ -35,8 +43,15 @@ export interface Task {
   status: TaskStatus
   parentTaskId: string | null
   totalFocusMinutes: number
+  progressType: ProgressType
+  estimatedMinutes: number | null
+  targetReps: number | null
+  completedReps: number
   lastWateredAt: string | null
   dueDate: string | null
+  completedAt: string | null
+  posX: number | null
+  posY: number | null
   createdAt: string
   updatedAt: string
 }

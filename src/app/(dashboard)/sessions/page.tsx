@@ -85,10 +85,10 @@ export default async function SessionsPage() {
     <div className="animate-fade-in space-y-8">
       {/* Header */}
       <header>
-        <h1 className="font-playfair text-3xl font-bold text-forest sm:text-4xl">
+        <h1 className="font-pixel text-3xl font-bold text-forest drop-shadow-[2px_2px_0_rgba(255,255,255,0.6)] sm:text-4xl">
           Session History
         </h1>
-        <p className="mt-1 text-sm text-soil/70">Your focus journey so far</p>
+        <p className="mt-1 font-pixel text-sm text-soil/80">Your focus journey so far</p>
 
         {/* Stats summary bar */}
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -101,20 +101,20 @@ export default async function SessionsPage() {
 
       {/* Streak heatmap */}
       <section>
-        <h2 className="mb-4 font-playfair text-xl font-bold text-forest">Watering Streak</h2>
-        <div className="rounded-3xl border border-soil/15 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 font-pixel text-xl font-bold text-forest">Watering Streak</h2>
+        <div className="pixel-panel p-6">
           <StreakCalendar dailyData={dailyData} />
         </div>
       </section>
 
       {/* Sessions list */}
       <section>
-        <h2 className="mb-4 font-playfair text-xl font-bold text-forest">All Sessions</h2>
+        <h2 className="mb-4 font-pixel text-xl font-bold text-forest">All Sessions</h2>
 
         {sessions.length === 0 ? (
-          <div className="rounded-3xl border-2 border-dashed border-soil/20 bg-mist/40 px-6 py-16 text-center">
-            <p className="font-playfair text-lg font-bold text-forest">No sessions yet</p>
-            <p className="mt-2 text-sm text-soil/60">
+          <div className="pixel-panel px-6 py-16 text-center">
+            <p className="font-pixel text-lg font-bold text-forest">No sessions yet</p>
+            <p className="mt-2 text-sm text-bark/60">
               Start a focus session from the garden to see your history here.
             </p>
           </div>
@@ -122,7 +122,7 @@ export default async function SessionsPage() {
           <div className="space-y-6">
             {Array.from(grouped.entries()).map(([date, dateSessions]) => (
               <div key={date}>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-soil/50">
+                <p className="mb-3 inline-block rounded-[4px] bg-bark/30 px-2.5 py-1 font-pixel text-xs font-bold uppercase tracking-wider text-mist shadow-pixel-sm">
                   {formatDateGroup(date)}
                 </p>
                 <div className="space-y-2">
@@ -141,9 +141,9 @@ export default async function SessionsPage() {
 
 function StatChip({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-soil/15 bg-white px-4 py-3 shadow-sm">
-      <p className="text-[10px] font-medium uppercase tracking-wider text-soil/50">{label}</p>
-      <p className="font-playfair mt-0.5 text-xl font-bold text-forest">{value}</p>
+    <div className="pixel-panel pixel-panel-soft px-4 py-3">
+      <p className="font-pixel text-[10px] font-bold uppercase tracking-wider text-bark/60">{label}</p>
+      <p className="mt-0.5 font-pixel text-xl font-bold text-forest">{value}</p>
     </div>
   )
 }

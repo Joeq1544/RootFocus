@@ -1,5 +1,5 @@
 import type { Task as PrismaTask } from '@prisma/client'
-import { Task, TaskStatus, TaskWithHealth } from '@/types'
+import { Task, TaskStatus, TaskWithHealth, ProgressType } from '@/types'
 import { calculatePlantHealth, calculatePotHealth } from './plant-health'
 
 /**
@@ -26,8 +26,15 @@ export function serializeTask(
     status: task.status as TaskStatus,
     parentTaskId: task.parentTaskId,
     totalFocusMinutes: task.totalFocusMinutes,
+    progressType: task.progressType as ProgressType,
+    estimatedMinutes: task.estimatedMinutes,
+    targetReps: task.targetReps,
+    completedReps: task.completedReps,
     lastWateredAt: task.lastWateredAt ? task.lastWateredAt.toISOString() : null,
     dueDate: task.dueDate ? task.dueDate.toISOString() : null,
+    completedAt: task.completedAt ? task.completedAt.toISOString() : null,
+    posX: task.posX,
+    posY: task.posY,
     createdAt: task.createdAt.toISOString(),
     updatedAt: task.updatedAt.toISOString(),
   }

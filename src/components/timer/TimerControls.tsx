@@ -25,7 +25,7 @@ export function TimerControls({ phase, onStart, onPause, onReset }: TimerControl
           type="button"
           disabled={primaryDisabled}
           onClick={isRunning ? onPause : onStart}
-          className="rounded-full bg-sunrise px-6 py-2 text-sm font-semibold text-soil shadow-sm transition-colors hover:bg-sunrise/80 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-[4px] bg-sunrise px-6 py-2 font-pixel text-sm font-bold text-bark shadow-pixel-sm transition-transform active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {primaryLabel}
         </button>
@@ -34,7 +34,7 @@ export function TimerControls({ phase, onStart, onPause, onReset }: TimerControl
           <button
             type="button"
             onClick={onReset}
-            className="rounded-full border border-soil/30 px-4 py-2 text-sm font-semibold text-soil/70 transition-colors hover:border-soil/60 hover:text-soil"
+            className="rounded-[4px] bg-panel-inset px-4 py-2 font-pixel text-sm font-bold text-bark shadow-pixel-sm transition-transform active:translate-y-0.5"
           >
             Reset
           </button>

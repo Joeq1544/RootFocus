@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { X } from 'lucide-react'
 
 interface ModalProps {
   isOpen: boolean
@@ -9,6 +11,7 @@ interface ModalProps {
   children: React.ReactNode
 }
 
+/** Pixel "window": parchment panel with a wooden title bar and a hard frame. */
 export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   useEffect(() => {
     if (!isOpen) return
@@ -19,36 +22,45 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
     return () => document.removeEventListener('keydown', handleKey)
   }, [isOpen, onClose])
 
-  if (!isOpen) return null
-
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-40 flex items-center justify-center bg-soil/40 px-4 backdrop-blur-sm animate-fade-in"
-      onClick={onClose}
-    >
-      <div
-        className="relative z-50 w-full max-w-md rounded-3xl bg-mist p-8 shadow-2xl shadow-soil/30"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          type="button"
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[55] flex items-center justify-center bg-bark/50 px-4"
           onClick={onClose}
-          aria-label="Close modal"
-          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-soil transition-colors hover:bg-soil/10"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
         >
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
-            <path d="M6 6 L18 18 M6 18 L18 6" />
-          </svg>
-        </button>
-        {title && (
-          <h2 className="font-playfair text-2xl font-bold text-forest pr-8">
-            {title}
-          </h2>
-        )}
-        <div className="mt-4">{children}</div>
-      </div>
-    </div>
+          <motion.div
+            className="pixel-panel relative z-[60] w-full max-w-md overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+            initial={{ scale: 0.9, y: 12, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            exit={{ scale: 0.95, y: 8, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+          >
+            {/* Title bar */}
+            <div className="flex items-center justify-between gap-2 bg-wood px-4 py-2.5 shadow-[inset_0_-2px_0_rgba(0,0,0,0.25)]">
+              <h2 className="font-pixel text-lg font-bold text-mist drop-shadow-[1px_1px_0_rgba(0,0,0,0.5)]">
+                {title}
+              </h2>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close"
+                className="flex h-7 w-7 items-center justify-center rounded-[3px] bg-clay text-mist shadow-pixel-sm transition-transform active:translate-y-0.5"
+              >
+                <X className="h-4 w-4" strokeWidth={3} />
+              </button>
+            </div>
+            <div className="p-6">{children}</div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }

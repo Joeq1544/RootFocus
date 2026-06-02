@@ -21,7 +21,7 @@ export function colorHex(slug: string): string {
 export function PlotColorDot({ slug, className = 'h-3 w-3' }: PlotColorDotProps) {
   return (
     <span
-      className={`inline-block rounded-full ring-1 ring-inset ring-black/10 ${className}`}
+      className={`inline-block rounded-[2px] ring-2 ring-inset ring-black/25 ${className}`}
       style={{ backgroundColor: colorHex(slug) }}
       aria-hidden="true"
     />

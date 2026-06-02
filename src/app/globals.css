@@ -2,6 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --wood: #7b4a2b;
+  --wood-light: #9c6b3f;
+  --wood-dark: #5a3620;
+  --wood-plank: #a6764a;
+  --bark: #3e2817;
+  --panel: #f3e4c6;
+  --panel-soft: #ead6ae;
+  --panel-inset: #e0c79a;
+  --panel-border: #8a5a33;
+  --panel-line: #c9a86e;
+  --soil-a: #6b4226;
+  --soil-b: #4a2d1a;
+}
+
+/* Crisp pixel rendering for sprites and any future PNG art. */
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  shape-rendering: crispEdges;
+}
+
 /* Suppress browser-default red :invalid styling — we validate manually. */
 input:invalid,
 textarea:invalid,
@@ -9,152 +31,211 @@ select:invalid {
   box-shadow: none;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ── Pixel surfaces ─────────────────────────────────────────────────────── */
+
+/* Parchment "window" used for cards, popovers, modals. Square pixel corners,
+   hard 3px frame, offset hard shadow (no blur). */
+.pixel-panel {
+  position: relative;
+  background-color: var(--panel);
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 3px var(--panel-border),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.45),
+    6px 6px 0 0 rgba(58, 40, 23, 0.35);
+}
+.pixel-panel-soft {
+  background-color: var(--panel-soft);
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
+/* Wooden plank panel — sidebars, raised beds, banners. Crisp plank seams. */
+.wood-panel {
+  position: relative;
+  border-radius: 4px;
+  background-color: var(--wood);
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.05) 0px,
+    rgba(255, 255, 255, 0.05) 1px,
+    transparent 1px,
+    transparent 7px,
+    rgba(0, 0, 0, 0.16) 7px,
+    rgba(0, 0, 0, 0.16) 8px
+  );
+  box-shadow:
+    0 0 0 3px var(--wood-dark),
+    inset 0 0 0 2px var(--wood-light),
+    4px 4px 0 0 rgba(58, 40, 23, 0.4);
 }
 
-@keyframes sway {
-  0%, 100% { transform: rotate(-1.5deg); }
-  50%      { transform: rotate(1.5deg); }
+/* Hard pixel border helper + button press. */
+.pixel-border {
+  border-radius: 4px;
+  box-shadow: 0 0 0 2px var(--panel-border), 3px 3px 0 0 rgba(58, 40, 23, 0.35);
+}
+.pixel-btn {
+  border-radius: 4px;
+  box-shadow: 0 0 0 2px rgba(58, 40, 23, 0.55), 3px 3px 0 0 rgba(58, 40, 23, 0.35);
+  transition: transform 90ms steps(2, end), box-shadow 90ms steps(2, end);
+}
+.pixel-btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 2px rgba(58, 40, 23, 0.55), 0 0 0 0 rgba(58, 40, 23, 0);
 }
 
-.animate-sway {
-  animation: sway 4s ease-in-out infinite;
-  transform-origin: bottom center;
+/* ── Garden beds ────────────────────────────────────────────────────────── */
+
+/* Raised bed = chunky wooden frame (square pixel corners). */
+.raised-bed {
+  position: relative;
+  border-radius: 4px;
+  background-color: var(--wood);
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.05) 0px,
+    rgba(255, 255, 255, 0.05) 1px,
+    transparent 1px,
+    transparent 7px,
+    rgba(0, 0, 0, 0.16) 7px,
+    rgba(0, 0, 0, 0.16) 8px
+  );
+  box-shadow:
+    inset 0 0 0 4px var(--wood-light),
+    inset 0 0 0 7px var(--wood-dark),
+    0 0 0 3px var(--bark),
+    6px 6px 0 0 rgba(58, 30, 12, 0.4);
 }
 
-@keyframes glow {
-  0%, 100% { filter: drop-shadow(0 0 2px rgba(212, 168, 67, 0.4)); }
-  50%      { filter: drop-shadow(0 0 8px rgba(212, 168, 67, 0.85)); }
+/* Tiled pixel dirt inside a bed. */
+.soil-bed {
+  border-radius: 2px;
+  background-color: var(--soil-a);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.14) 0 1px, transparent 1px 16px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.14) 0 1px, transparent 1px 16px),
+    radial-gradient(circle at 6px 10px, rgba(255, 240, 220, 0.10) 0 1px, transparent 1px),
+    radial-gradient(circle at 22px 26px, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px),
+    linear-gradient(180deg, var(--soil-a) 0%, var(--soil-b) 100%);
+  background-size: 16px 16px, 16px 16px, 32px 32px, 32px 32px, 100% 100%;
+  box-shadow: inset 0 0 0 3px var(--wood-dark), inset 0 4px 10px rgba(0, 0, 0, 0.45);
 }
 
-.animate-glow {
-  animation: glow 2.8s ease-in-out infinite;
+/* Harvested variants — golden wood + amber soil. */
+.raised-bed.harvested {
+  background-color: #8b6f2c;
+  box-shadow:
+    inset 0 0 0 4px #d4a843,
+    inset 0 0 0 7px #6b5320,
+    0 0 0 3px #5a4220,
+    6px 6px 0 0 rgba(58, 30, 12, 0.4);
 }
+.soil-bed.harvested {
+  background-color: #6b5320;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.12) 0 1px, transparent 1px 16px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.12) 0 1px, transparent 1px 16px),
+    linear-gradient(180deg, #6b5320 0%, #5a4218 100%);
+  background-size: 16px 16px, 16px 16px, 100% 100%;
+}
+
+/* ── Backgrounds ────────────────────────────────────────────────────────── */
 
 .bg-garden-texture {
-  background-color: #F5F5F0;
+  background-color: #f5f5f0;
   background-image: radial-gradient(circle at 1px 1px, rgba(107, 66, 38, 0.06) 1px, transparent 0);
   background-size: 16px 16px;
 }
 
-/* Outdoor garden scene: warm sunlight at top, soft grass-tinted air,
-   warm earth at bottom. Used as the dashboard main background. */
+/* Pixel sky scene: warm sun-tinted top → soft grass band at the bottom. */
+.bg-sky-scene,
 .bg-garden-scene {
   background:
-    radial-gradient(ellipse 800px 400px at 90% -100px, rgba(232, 192, 96, 0.35), transparent 60%),
-    linear-gradient(to bottom,
-      #E8F0DC 0%,       /* soft sky-grass */
-      #F5F2E0 35%,      /* warm air */
-      #EDE3CD 70%,      /* dust */
-      #D9C9A8 100%      /* faint earth */
-    );
+    linear-gradient(to bottom, #bfe5f0 0%, #d8eef0 38%, #e9f0d6 60%, #cfe0a8 78%, #b9cf8a 100%);
+}
+.bg-sky-scene::after,
+.bg-garden-scene::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  /* faint sun glow, top-right */
+  background: radial-gradient(420px 280px at 88% -40px, rgba(232, 192, 96, 0.4), transparent 70%);
 }
 
-/* Wooden raised bed — looks like horizontal pine planks with grain.
-   Layered gradients: outer wood frame, inner soil bed. */
-.raised-bed {
-  position: relative;
-  background:
-    /* soil center */
-    radial-gradient(ellipse at center, #6B4226 0%, #5A3620 80%),
-    #6B4226;
-  border-radius: 18px;
-  box-shadow:
-    inset 0 0 0 8px #8B5E3C,           /* wood plank inner edge */
-    inset 0 0 0 9px #6B4226,           /* dark seam */
-    inset 0 0 0 17px #A07550,          /* outer wood plank */
-    inset 0 0 0 18px #5A3620,           /* outermost seam */
-    0 12px 24px -8px rgba(58, 30, 12, 0.55),  /* drop shadow on ground */
-    inset 0 6px 12px rgba(0, 0, 0, 0.4);       /* depth in soil */
+/* Plant grounding shadow — small hard pixel shadow. */
+.plant-shadow {
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.28));
 }
 
-/* Soil grain texture inside the bed. */
-.soil-bed {
-  background:
-    radial-gradient(circle at 30% 20%, rgba(255, 240, 220, 0.08) 0px, transparent 2px),
-    radial-gradient(circle at 70% 60%, rgba(255, 240, 220, 0.06) 0px, transparent 2px),
-    radial-gradient(circle at 20% 80%, rgba(0, 0, 0, 0.15) 0px, transparent 2px),
-    radial-gradient(circle at 85% 30%, rgba(0, 0, 0, 0.12) 0px, transparent 2px),
-    linear-gradient(180deg, #5A3620 0%, #4A2D1C 100%);
-  background-size: 40px 40px, 50px 50px, 35px 35px, 45px 45px, 100% 100%;
-  border-radius: 12px;
-  box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.5);
+/* ── Animations (stepped where it reads better for pixels) ───────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+
+@keyframes sway {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+.animate-sway {
+  animation: sway 3.2s steps(3, end) infinite;
+  transform-origin: bottom center;
 }
 
-/* Harvested bed — golden-warm wood and amber soil. */
-.raised-bed.harvested {
-  background:
-    radial-gradient(ellipse at center, #8B6F2C 0%, #6B5320 80%);
-  box-shadow:
-    inset 0 0 0 8px #B89048,
-    inset 0 0 0 9px #6B5320,
-    inset 0 0 0 17px #D4A843,
-    inset 0 0 0 18px #5A4220,
-    0 12px 24px -8px rgba(58, 30, 12, 0.55),
-    inset 0 6px 12px rgba(0, 0, 0, 0.3);
+@keyframes glow {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(212, 168, 67, 0.4)); }
+  50% { filter: drop-shadow(0 0 6px rgba(212, 168, 67, 0.85)); }
 }
+.animate-glow { animation: glow 2.8s steps(2, end) infinite; }
 
-.soil-bed.harvested {
-  background:
-    radial-gradient(circle at 30% 20%, rgba(255, 240, 200, 0.15) 0px, transparent 2px),
-    radial-gradient(circle at 70% 60%, rgba(255, 240, 200, 0.12) 0px, transparent 2px),
-    linear-gradient(180deg, #6B5320 0%, #5A4218 100%);
-  background-size: 40px 40px, 50px 50px, 100% 100%;
-}
-
-/* Ambient sun rays — used in top-right corner of garden page. */
 @keyframes sunPulse {
-  0%, 100% { opacity: 0.55; }
-  50%      { opacity: 0.75; }
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
 }
 .sun-rays { animation: sunPulse 6s ease-in-out infinite; }
 
-/* Floating drift for ambient leaves/butterflies. */
 @keyframes drift {
-  0%   { transform: translate(0, 0) rotate(0deg); }
-  25%  { transform: translate(8px, -4px) rotate(8deg); }
-  50%  { transform: translate(-4px, 4px) rotate(-6deg); }
-  75%  { transform: translate(6px, -2px) rotate(4deg); }
-  100% { transform: translate(0, 0) rotate(0deg); }
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(10px, -4px); }
+  50% { transform: translate(-2px, 5px); }
+  75% { transform: translate(8px, -2px); }
+  100% { transform: translate(0, 0); }
 }
-.animate-drift { animation: drift 9s ease-in-out infinite; }
+.animate-drift { animation: drift 10s steps(8, end) infinite; }
 
-/* Plant grounding shadow — a small ellipse beneath the plant. */
-.plant-shadow {
-  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.35));
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
 }
+.animate-bob { animation: bob 2.4s steps(4, end) infinite; }
 
-/* Floating "+X min" label after a focus session completes. */
 @keyframes float-up {
-  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  0% { opacity: 1; transform: translateY(0) scale(1); }
   100% { opacity: 0; transform: translateY(-56px) scale(1.15); }
 }
 .animate-float-up {
   animation: float-up 1.5s ease-out forwards;
   position: fixed;
   z-index: 60;
+  font-family: var(--font-pixel), monospace;
   font-weight: 700;
-  font-size: 0.875rem;
-  color: #2D5016;
+  font-size: 1rem;
+  color: #2d5016;
+  text-shadow: 1px 1px 0 #fff;
   pointer-events: none;
   transform-origin: center bottom;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-float-up { display: none; }
-  .animate-sway { animation: none; }
-  .animate-glow { animation: none; }
-  .animate-drift { animation: none; }
+  .animate-sway,
+  .animate-glow,
+  .animate-drift,
+  .animate-bob,
+  .sun-rays {
+    animation: none;
+  }
 }

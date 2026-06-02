@@ -54,6 +54,12 @@ export async function PATCH(
     }
     if (typeof input.status === 'string' && input.status in TaskStatus) {
       data.status = input.status as PrismaTaskStatus
+      // Stamp completedAt on the transition into COMPLETED; clear it on transition away
+      if (input.status === 'COMPLETED' && existing.status !== 'COMPLETED') {
+        data.completedAt = new Date()
+      } else if (input.status !== 'COMPLETED' && existing.status === 'COMPLETED') {
+        data.completedAt = null
+      }
     }
     if (input.dueDate === null) {
       data.dueDate = null
@@ -100,6 +106,45 @@ export async function PATCH(
       })
     }
 
+    // Progress type + related fields
+    if (input.progressType === 'TIME' || input.progressType === 'REPS') {
+      data.progressType = input.progressType
+    }
+    if (input.estimatedMinutes === null) {
+      data.estimatedMinutes = null
+    } else if (typeof input.estimatedMinutes === 'number') {
+      if (input.estimatedMinutes < 1 || !Number.isFinite(input.estimatedMinutes)) {
+        return NextResponse.json({ error: 'estimatedMinutes must be a positive number' }, { status: 400 })
+      }
+      data.estimatedMinutes = Math.round(input.estimatedMinutes)
+    }
+    if (input.targetReps === null) {
+      data.targetReps = null
+    } else if (typeof input.targetReps === 'number') {
+      if (!Number.isInteger(input.targetReps) || input.targetReps < 1) {
+        return NextResponse.json({ error: 'targetReps must be a positive integer' }, { status: 400 })
+      }
+      data.targetReps = input.targetReps
+    }
+    if (typeof input.completedReps === 'number') {
+      if (!Number.isInteger(input.completedReps) || input.completedReps < 0) {
+        return NextResponse.json({ error: 'completedReps must be a non-negative integer' }, { status: 400 })
+      }
+      data.completedReps = input.completedReps
+    }
+
+    // Canvas position (fractions 0..1; null resets to flow layout)
+    if (input.posX === null) {
+      data.posX = null
+    } else if (typeof input.posX === 'number' && Number.isFinite(input.posX)) {
+      data.posX = Math.min(1, Math.max(0, input.posX))
+    }
+    if (input.posY === null) {
+      data.posY = null
+    } else if (typeof input.posY === 'number' && Number.isFinite(input.posY)) {
+      data.posY = Math.min(1, Math.max(0, input.posY))
+    }
+
     // Pot conversion
     if (typeof input.isPot === 'boolean') {
       if (input.isPot === false) {
@@ -115,7 +160,20 @@ export async function PATCH(
       data.isPot = input.isPot
     }
 
-    await prisma.task.update({ where: { id: params.id }, data })
+    // If this is a Pot being harvested, cascade COMPLETED + completedAt to subtasks
+    const cascadingHarvest =
+      existing.isPot && input.status === 'COMPLETED' && existing.status !== 'COMPLETED'
+    const completedAtForCascade = data.completedAt instanceof Date ? data.completedAt : new Date()
+
+    await prisma.$transaction(async (tx) => {
+      await tx.task.update({ where: { id: params.id }, data })
+      if (cascadingHarvest) {
+        await tx.task.updateMany({
+          where: { parentTaskId: params.id, status: { not: 'COMPLETED' } },
+          data: { status: 'COMPLETED', completedAt: completedAtForCascade },
+        })
+      }
+    })
     const updated = await prisma.task.findUnique({
       where: { id: params.id },
       include: { subtasks: true },

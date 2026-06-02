@@ -77,6 +77,12 @@ export function useFocusTimer({
     setSecondsLeft(totalFocusSeconds)
   }, [clearTimer, totalFocusSeconds])
 
+  // Keep the displayed time in sync if the chosen duration changes while idle
+  // (e.g. the user picks a different preset in the setup step before starting).
+  useEffect(() => {
+    if (phaseRef.current === 'IDLE') setSecondsLeft(totalFocusSeconds)
+  }, [totalFocusSeconds])
+
   // Detect reaching zero while RUNNING
   useEffect(() => {
     if (phase !== 'RUNNING' || secondsLeft !== 0) return

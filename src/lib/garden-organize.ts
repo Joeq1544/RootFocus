@@ -3,7 +3,7 @@ import { Plot, PlotWithTasks, TaskStatus, TaskWithHealth } from '@/types'
 /**
  * Groups top-level (non-completed, parentless) tasks into their plots,
  * sorted by Plot.order ascending. Completed tasks are filtered out — they
- * live in the Trophy Room, not the garden.
+ * live in the Harvest, not the garden.
  *
  * Pots and Plants both surface as top-level entries within a plot.
  * Subtasks are nested inside their parent pot (already serialized).

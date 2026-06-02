@@ -2,12 +2,17 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Plot, PlotWithTasks, TaskWithHealth } from '@/types'
+import { Pos } from '@/lib/garden-layout'
 import { useTimerContext } from '@/components/providers/TimerContext'
 import { useStreak } from '@/components/providers/StreakContext'
 import { GardenPlot } from './GardenPlot'
+import { ZoomView } from './ZoomView'
 import { AddTaskModal, AddTaskInput } from './AddTaskModal'
 import { AddPlotModal, AddPlotInput } from './AddPlotModal'
 import { EditPlotModal, EditPlotInput } from './EditPlotModal'
+import { PixelSprite } from '@/components/pixel/sprites'
+
+type ZoomState = { kind: 'plot'; plotId: string } | { kind: 'pot'; potId: string } | null
 
 interface GardenClientProps {
   initialPlots: PlotWithTasks[]
@@ -40,17 +45,26 @@ export function GardenClient({ initialPlots }: GardenClientProps) {
   >({ isOpen: false })
   const [plotModalOpen, setPlotModalOpen] = useState(false)
   const [editingPlotId, setEditingPlotId] = useState<string | null>(null)
+  const [zoom, setZoom] = useState<ZoomState>(null)
 
   const { registerSessionHandler } = useTimerContext()
   const { updateStreak } = useStreak()
 
   // ── Session handler ─────────────────────────────────────────────────────────
   const handleSessionComplete = useCallback(
-    async ({ taskId, durationMinutes }: { taskId: string; durationMinutes: number }) => {
+    async ({
+      taskId,
+      durationMinutes,
+      completedReps,
+    }: {
+      taskId: string
+      durationMinutes: number
+      completedReps?: number
+    }) => {
       const res = await fetch('/api/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId, durationMinutes }),
+        body: JSON.stringify({ taskId, durationMinutes, completedReps }),
       })
       const data = await safeJson(res)
       if (!res.ok) {
@@ -61,9 +75,12 @@ export function GardenClient({ initialPlots }: GardenClientProps) {
       if (result.task) setPlots((prev) => replaceTaskInPlots(prev, result.task!))
       if (result.streak) updateStreak(result.streak.currentStreak)
 
+      const labelText = completedReps && completedReps > 0
+        ? `+${durationMinutes} min · +${completedReps} reps`
+        : `+${durationMinutes} min`
       const label: FloatingLabel = {
         id: crypto.randomUUID(),
-        label: `+${durationMinutes} min`,
+        label: labelText,
         x: window.innerWidth / 2,
         y: window.innerHeight / 2 - 60,
       }
@@ -209,6 +226,60 @@ export function GardenClient({ initialPlots }: GardenClientProps) {
     setPlots((prev) => removeTaskFromPlots(prev, taskId))
   }
 
+  async function handleLogMinutes(taskId: string, delta: number) {
+    setActionError(null)
+    const res = await fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskId, durationMinutes: delta, notes: 'Manual entry' }),
+    })
+    const data = await safeJson(res)
+    if (!res.ok) throw new Error(errMsg(data, 'Failed to log time'))
+
+    const result = data as { task?: TaskWithHealth; streak?: { currentStreak: number } }
+    if (result.task) setPlots((prev) => replaceTaskInPlots(prev, result.task!))
+    if (result.streak) updateStreak(result.streak.currentStreak)
+
+    const label: FloatingLabel = {
+      id: crypto.randomUUID(),
+      label: `+${delta} min`,
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2 - 60,
+    }
+    setFloatingLabels((prev) => [...prev, label])
+    setTimeout(() => setFloatingLabels((prev) => prev.filter((l) => l.id !== label.id)), 1600)
+  }
+
+  async function handleLogReps(taskId: string, delta: number) {
+    setActionError(null)
+    const task = plots
+      .flatMap((p) => p.tasks)
+      .flatMap((t) => [t, ...t.subtasks])
+      .find((t) => t.id === taskId)
+    if (!task || task.targetReps === null) {
+      throw new Error('Task is not rep-based')
+    }
+    const newTotal = task.completedReps + delta
+    const res = await fetch(`/api/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ completedReps: newTotal }),
+    })
+    const data = await safeJson(res)
+    if (!res.ok) throw new Error(errMsg(data, 'Failed to log reps'))
+    const updated = data.task as TaskWithHealth | undefined
+    if (updated) setPlots((prev) => replaceTaskInPlots(prev, updated))
+
+    const label: FloatingLabel = {
+      id: crypto.randomUUID(),
+      label: `+${delta} reps`,
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2 - 60,
+    }
+    setFloatingLabels((prev) => [...prev, label])
+    setTimeout(() => setFloatingLabels((prev) => prev.filter((l) => l.id !== label.id)), 1600)
+  }
+
   async function handleConvertToPot(taskId: string) {
     setActionError(null)
     const res = await fetch(`/api/tasks/${taskId}`, {
@@ -226,8 +297,52 @@ export function GardenClient({ initialPlots }: GardenClientProps) {
     setPlots((prev) => replaceTaskInPlots(prev, updated))
   }
 
+  async function handleMoveTask(taskId: string, pos: Pos) {
+    setActionError(null)
+    // Optimistic — snap the tile to its new spot immediately
+    setPlots((prev) => setTaskPosition(prev, taskId, pos))
+    const res = await fetch(`/api/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ posX: pos.x, posY: pos.y }),
+    })
+    if (!res.ok) {
+      const data = await safeJson(res)
+      setActionError(errMsg(data, 'Failed to move'))
+      return
+    }
+    const data = await safeJson(res)
+    const updated = data.task as TaskWithHealth | undefined
+    if (updated) setPlots((prev) => replaceTaskInPlots(prev, updated))
+  }
+
+  async function handleToggleGridSnap(plotId: string, value: boolean) {
+    setActionError(null)
+    setPlots((prev) => prev.map((p) => (p.id === plotId ? { ...p, gridSnap: value } : p)))
+    const res = await fetch(`/api/plots/${plotId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gridSnap: value }),
+    })
+    if (!res.ok) {
+      const data = await safeJson(res)
+      setActionError(errMsg(data, 'Failed to update grid snap'))
+      // revert
+      setPlots((prev) => prev.map((p) => (p.id === plotId ? { ...p, gridSnap: !value } : p)))
+    }
+  }
+
   // ── Render ──────────────────────────────────────────────────────────────────
   const editingPlot = plots.find((p) => p.id === editingPlotId) ?? null
+
+  // Resolve the live zoom target from state so edits inside zoom stay in sync
+  const zoomPlot = zoom?.kind === 'plot' ? plots.find((p) => p.id === zoom.plotId) ?? null : null
+  const zoomPot =
+    zoom?.kind === 'pot'
+      ? plots.flatMap((p) => p.tasks).find((t) => t.id === zoom.potId) ?? null
+      : null
+  const zoomPotPlot =
+    zoomPot != null ? plots.find((p) => p.tasks.some((t) => t.id === zoomPot.id)) ?? null : null
 
   if (plots.length === 0) {
     return (
@@ -241,17 +356,17 @@ export function GardenClient({ initialPlots }: GardenClientProps) {
   return (
     <>
       {actionError && (
-        <p className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600">{actionError}</p>
+        <p className="mb-4 rounded-[4px] bg-red-100 px-4 py-2.5 font-pixel text-sm text-red-700 shadow-pixel-sm">{actionError}</p>
       )}
 
       <div className="mb-6 flex items-center justify-between">
-        <p className="text-sm text-mist/70 drop-shadow">
+        <p className="rounded-[4px] bg-bark/30 px-2.5 py-1 font-pixel text-sm text-mist shadow-pixel-sm">
           {plots.length} {plots.length === 1 ? 'plot' : 'plots'} growing
         </p>
         <button
           type="button"
           onClick={() => setPlotModalOpen(true)}
-          className="inline-flex items-center gap-2 rounded-full bg-forest px-4 py-2 text-sm font-semibold text-mist shadow-lg shadow-forest/30 transition-colors hover:bg-forest-dark"
+          className="inline-flex items-center gap-2 rounded-[4px] bg-forest px-4 py-2 font-pixel text-sm font-bold text-mist shadow-pixel transition-transform active:translate-y-0.5"
         >
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
             <path d="M12 5v14 M5 12h14" />
@@ -267,11 +382,16 @@ export function GardenClient({ initialPlots }: GardenClientProps) {
             plot={plot}
             onAddPlant={(plotId) => setTaskModal({ isOpen: true, mode: 'plant', plotId })}
             onAddPot={(plotId) => setTaskModal({ isOpen: true, mode: 'pot', plotId })}
-            onAddSubtask={(parentTaskId, potDueDate) => setTaskModal({ isOpen: true, mode: 'plant', parentTaskId, potDueDate })}
             onEditPlot={(plotId) => setEditingPlotId(plotId)}
+            onZoomPlot={(plotId) => setZoom({ kind: 'plot', plotId })}
+            onZoomPot={(task) => setZoom({ kind: 'pot', potId: task.id })}
+            onMoveTask={handleMoveTask}
+            onToggleGridSnap={handleToggleGridSnap}
             onComplete={handleComplete}
             onDelete={handleDelete}
             onConvertToPot={handleConvertToPot}
+            onLogReps={handleLogReps}
+            onLogMinutes={handleLogMinutes}
           />
         ))}
       </div>
@@ -299,6 +419,48 @@ export function GardenClient({ initialPlots }: GardenClientProps) {
         onSubmit={handleUpdatePlot}
         onDelete={handleDeletePlot}
       />
+
+      {zoomPlot && (
+        <ZoomView
+          mode="plot"
+          plot={zoomPlot}
+          gridSnap={zoomPlot.gridSnap}
+          onToggleGridSnap={(value) => handleToggleGridSnap(zoomPlot.id, value)}
+          onClose={() => setZoom(null)}
+          onMoveTask={handleMoveTask}
+          onComplete={handleComplete}
+          onDelete={handleDelete}
+          onConvertToPot={handleConvertToPot}
+          onLogReps={handleLogReps}
+          onLogMinutes={handleLogMinutes}
+          onZoomPot={(task) => setZoom({ kind: 'pot', potId: task.id })}
+          onAddPlant={() => setTaskModal({ isOpen: true, mode: 'plant', plotId: zoomPlot.id })}
+          onAddPot={() => setTaskModal({ isOpen: true, mode: 'pot', plotId: zoomPlot.id })}
+        />
+      )}
+
+      {zoomPot && (
+        <ZoomView
+          mode="pot"
+          pot={zoomPot}
+          gridSnap={zoomPotPlot?.gridSnap ?? false}
+          onToggleGridSnap={(value) => zoomPotPlot && handleToggleGridSnap(zoomPotPlot.id, value)}
+          onClose={() => setZoom(null)}
+          onMoveTask={handleMoveTask}
+          onComplete={handleComplete}
+          onDelete={handleDelete}
+          onLogReps={handleLogReps}
+          onLogMinutes={handleLogMinutes}
+          onAddPlant={() =>
+            setTaskModal({
+              isOpen: true,
+              mode: 'plant',
+              parentTaskId: zoomPot.id,
+              potDueDate: zoomPot.dueDate ?? undefined,
+            })
+          }
+        />
+      )}
 
       {floatingLabels.map((lbl) => (
         <span
@@ -333,6 +495,24 @@ function replaceTaskInPlots(plots: PlotWithTasks[], updated: TaskWithHealth): Pl
   }))
 }
 
+function setTaskPosition(plots: PlotWithTasks[], id: string, pos: Pos): PlotWithTasks[] {
+  return plots.map((p) => ({
+    ...p,
+    tasks: p.tasks.map((t) => {
+      if (t.id === id) return { ...t, posX: pos.x, posY: pos.y }
+      if (t.subtasks.some((s) => s.id === id)) {
+        return {
+          ...t,
+          subtasks: t.subtasks.map((s) =>
+            s.id === id ? { ...s, posX: pos.x, posY: pos.y } : s,
+          ),
+        }
+      }
+      return t
+    }),
+  }))
+}
+
 function removeTaskFromPlots(plots: PlotWithTasks[], id: string): PlotWithTasks[] {
   return plots.map((p) => ({
     ...p,
@@ -344,21 +524,18 @@ function removeTaskFromPlots(plots: PlotWithTasks[], id: string): PlotWithTasks[
 
 function EmptyState({ onCreatePlot }: { onCreatePlot: () => void }) {
   return (
-    <div className="rounded-3xl border-4 border-dashed border-soil/30 bg-mist/40 px-6 py-16 text-center">
-      <svg viewBox="0 0 200 120" className="mx-auto h-32 w-48 text-soil/30" fill="currentColor" aria-hidden="true">
-        <ellipse cx="100" cy="100" rx="80" ry="14" />
-        <ellipse cx="100" cy="98" rx="60" ry="8" fill="#8B5E3C" opacity="0.4" />
-      </svg>
-      <h3 className="mt-4 font-playfair text-2xl font-bold text-forest">
+    <div className="pixel-panel px-6 py-16 text-center">
+      <PixelSprite name="logo" className="mx-auto h-24 w-24" />
+      <h3 className="mt-4 font-pixel text-2xl font-bold text-forest">
         Your greenhouse is empty
       </h3>
-      <p className="mt-2 text-sm text-soil/70">
+      <p className="mt-2 font-pixel text-sm text-bark/70">
         Plots are the beds where your plants grow — think Work, School, Personal.
       </p>
       <button
         type="button"
         onClick={onCreatePlot}
-        className="mt-6 inline-flex items-center gap-2 rounded-full bg-sunrise px-6 py-3 font-semibold text-soil shadow-lg shadow-sunrise/40 transition-colors hover:bg-sunrise-light"
+        className="mt-6 inline-flex items-center gap-2 rounded-[4px] bg-sunrise px-6 py-3 font-pixel font-bold text-bark shadow-pixel transition-transform active:translate-y-0.5"
       >
         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
           <path d="M12 5v14 M5 12h14" />

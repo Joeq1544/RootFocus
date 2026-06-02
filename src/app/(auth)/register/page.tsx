@@ -5,13 +5,17 @@ import Link from 'next/link'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Avatar } from '@/components/ui/Avatar'
+import { PixelSprite, AVATAR_OPTIONS } from '@/components/pixel/sprites'
 
 export default function RegisterPage() {
   const { register } = useAuth()
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [avatar, setAvatar] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -19,6 +23,10 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
 
+    if (name.trim().length === 0) {
+      setError('Please enter your name')
+      return
+    }
     if (password !== confirmPassword) {
       setError('Passwords do not match')
       return
@@ -26,7 +34,7 @@ export default function RegisterPage() {
 
     setIsSubmitting(true)
     try {
-      await register(email, username, password)
+      await register({ name: name.trim(), username: username.trim(), email, password, avatar })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
@@ -35,39 +43,60 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-mist px-4 py-12">
-      <div className="animate-fade-in w-full max-w-md">
-        {/* Card */}
-        <div className="rounded-3xl bg-white/80 px-8 py-10 shadow-lg shadow-soil/10 backdrop-blur-sm">
-          {/* Leaf decoration */}
-          <div className="mb-6 flex justify-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-sunrise/20">
-              <svg
-                className="h-7 w-7 text-sunrise"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden="true"
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-sky-scene px-4 py-12">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+        <PixelSprite name="sun" className="sun-rays absolute right-10 top-10 h-20 w-20" />
+        <PixelSprite name="butterfly" className="animate-drift absolute left-[18%] top-24 h-10 w-10" />
+      </div>
+      <div className="absolute inset-x-0 bottom-0 h-20 bg-grass-dark shadow-[inset_0_4px_0_rgba(0,0,0,0.2)]" />
+
+      <div className="animate-fade-in relative z-10 w-full max-w-md">
+        <div className="pixel-panel px-8 py-9">
+          <div className="mb-4 flex justify-center">
+            <PixelSprite name="plant-sprout" className="h-16 w-16" />
+          </div>
+
+          <h1 className="text-center font-pixel text-3xl font-bold text-forest">Start Growing</h1>
+          <p className="mt-2 text-center text-sm text-bark/60">Plant your first seed today.</p>
+
+          {/* Avatar picker */}
+          <div className="mb-5 flex flex-col items-center gap-2">
+            <Avatar name={name} username={username} avatar={avatar} className="h-16 w-16" />
+            <div className="flex flex-wrap justify-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setAvatar(null)}
+                title="Use my initial"
+                className={`flex h-9 w-9 items-center justify-center rounded-[4px] font-pixel text-sm font-bold transition-transform active:translate-y-0.5 ${
+                  avatar === null ? 'bg-forest text-mist shadow-pixel-sm' : 'bg-panel-inset text-bark'
+                }`}
               >
-                <path d="M17 8C8 10 5.9 16.17 3.82 21.34L5.71 22l1-2.3A4.49 4.49 0 0 0 8 20C19 20 22 3 22 3c-1 2-8 2-8 2s2-1 3-3c-1.5 1-3 2-4 3 0 0 2-4 6-4C21.93 1 17 8 17 8z" />
-              </svg>
+                {(name.trim()[0] ?? 'A').toUpperCase()}
+              </button>
+              {AVATAR_OPTIONS.map((opt) => (
+                <button
+                  key={opt.slug}
+                  type="button"
+                  onClick={() => setAvatar(opt.slug)}
+                  title={opt.label}
+                  className={`flex h-9 w-9 items-center justify-center rounded-[4px] transition-transform active:translate-y-0.5 ${
+                    avatar === opt.slug ? 'bg-forest shadow-pixel-sm' : 'bg-panel-inset'
+                  }`}
+                >
+                  <Avatar avatar={opt.slug} className="h-7 w-7 !bg-transparent !shadow-none" />
+                </button>
+              ))}
             </div>
           </div>
 
-          <h1 className="font-playfair text-center text-3xl font-bold text-forest">
-            Start Growing
-          </h1>
-          <p className="mt-2 text-center text-sm text-soil/60">
-            Plant your first seed today.
-          </p>
-
-          <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5" noValidate>
+          <form onSubmit={handleSubmit} className="mt-2 flex flex-col gap-4" noValidate>
             <Input
-              label="Email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              autoComplete="email"
+              label="Name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="What should we call you?"
+              autoComplete="name"
               required
             />
             <Input
@@ -75,8 +104,17 @@ export default function RegisterPage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Your gardener name"
+              placeholder="3–20 letters, numbers, _"
               autoComplete="username"
+              required
+            />
+            <Input
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
               required
             />
             <Input
@@ -99,7 +137,7 @@ export default function RegisterPage() {
             />
 
             {error && (
-              <p className="rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600">
+              <p className="rounded-[4px] bg-red-100 px-4 py-2.5 text-sm text-red-700 shadow-pixel-sm">
                 {error}
               </p>
             )}
@@ -114,9 +152,9 @@ export default function RegisterPage() {
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-soil/60">
+          <p className="mt-6 text-center text-sm text-bark/60">
             Already have an account?{' '}
-            <Link href="/login" className="font-medium text-forest hover:underline">
+            <Link href="/login" className="font-pixel font-bold text-forest hover:underline">
               Sign in
             </Link>
           </p>

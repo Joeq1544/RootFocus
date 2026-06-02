@@ -32,12 +32,6 @@ export default async function DashboardLayout({
 
   const streak = user.streaks[0] ?? { currentStreak: 0, longestStreak: 0 }
 
-  const initials = user.username
-    .split(/\s+/)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('')
-    .slice(0, 2) || user.username[0]?.toUpperCase() || '?'
-
   // Today's focus minutes for sidebar footer
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
@@ -50,7 +44,12 @@ export default async function DashboardLayout({
   return (
     <StreakProvider initialStreak={streak.currentStreak}>
       <TimerContextProvider>
-        <DashboardChrome username={user.username} initials={initials} todayMinutes={todayMinutes}>
+        <DashboardChrome
+          name={user.name}
+          username={user.username}
+          avatar={user.avatar}
+          todayMinutes={todayMinutes}
+        >
           {children}
         </DashboardChrome>
       </TimerContextProvider>

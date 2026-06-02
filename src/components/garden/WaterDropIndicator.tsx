@@ -3,57 +3,67 @@ interface WaterDropIndicatorProps {
   className?: string
 }
 
+// Pixel droplet mask: 'o' = outline, '#' = fillable interior, '.' = transparent.
+const DROP = [
+  '...oo...',
+  '..o##o..',
+  '..o##o..',
+  '.o####o.',
+  '.o####o.',
+  'o######o',
+  'o######o',
+  'o######o',
+  '.o####o.',
+  '..oooo..',
+]
+
+/**
+ * Pixel-art water drop whose interior fills from the bottom by urgency, tinted
+ * blue→teal→orange→red. Keeps the `urgencyScore` contract.
+ */
 export function WaterDropIndicator({ urgencyScore, className = '' }: WaterDropIndicatorProps) {
   const score = Math.max(0, Math.min(10, urgencyScore))
 
-  let color = 'text-blue-400'
-  let fillRatio = 0.2
+  let water = '#3F90C4'
+  let fillRatio = 0.25
   let pulse = false
-
   if (score >= 10) {
-    color = 'text-red-500'
+    water = '#E0533A'
     fillRatio = 1
     pulse = true
   } else if (score >= 7) {
-    color = 'text-orange-500'
+    water = '#E08A3A'
     fillRatio = 0.85
   } else if (score >= 4) {
-    color = 'text-teal-500'
-    fillRatio = 0.5
+    water = '#3FB7A8'
+    fillRatio = 0.55
   }
 
-  // viewBox 0 0 24 30; drop spans roughly y=2..28 (height 26)
-  const fillTop = 28 - 26 * fillRatio
+  const outline = '#2A4A66'
+  const empty = '#CFE3EF'
+  const fillStartRow = DROP.length - Math.round(DROP.length * fillRatio)
+
+  const rects: React.ReactNode[] = []
+  DROP.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      const ch = row[x]
+      if (ch === '.') continue
+      const fill = ch === 'o' ? outline : y >= fillStartRow ? water : empty
+      rects.push(<rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill={fill} />)
+    }
+  })
 
   return (
     <div className={`inline-flex items-center gap-1 ${className}`} title={`Urgency ${score.toFixed(1)} / 10`}>
       <svg
-        viewBox="0 0 24 30"
-        className={`h-5 w-4 ${color} ${pulse ? 'animate-pulse' : ''}`}
+        viewBox="0 0 8 10"
+        className={`h-5 w-4 ${pulse ? 'animate-pulse' : ''}`}
+        shapeRendering="crispEdges"
         aria-hidden="true"
       >
-        <defs>
-          <clipPath id={`drop-clip-${score.toFixed(0)}`}>
-            <path d="M12 2 C12 2 4 12 4 19 a8 8 0 0 0 16 0 C20 12 12 2 12 2 Z" />
-          </clipPath>
-        </defs>
-        <path
-          d="M12 2 C12 2 4 12 4 19 a8 8 0 0 0 16 0 C20 12 12 2 12 2 Z"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-        <rect
-          x="0"
-          y={fillTop}
-          width="24"
-          height="30"
-          fill="currentColor"
-          clipPath={`url(#drop-clip-${score.toFixed(0)})`}
-          opacity="0.85"
-        />
+        {rects}
       </svg>
-      <span className="text-xs font-medium text-soil/70">{score.toFixed(1)}</span>
+      <span className="font-mono text-xs font-medium text-soil/70">{score.toFixed(1)}</span>
     </div>
   )
 }

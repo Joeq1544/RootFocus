@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getAuthUser } from '@/lib/auth'
 import { serializeTaskWithSubtasks } from '@/lib/task-serializer'
 import { calculatePlantHealth } from '@/lib/plant-health'
-import { TaskStatus } from '@/types'
+import { TaskStatus, ProgressType } from '@/types'
 import type { TaskStatus as PrismaTaskStatus } from '@prisma/client'
 
 export async function GET(request: NextRequest) {
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     const input = body as Record<string, unknown>
-    const { taskId, durationMinutes, notes } = input
+    const { taskId, durationMinutes, notes, completedReps } = input
 
     if (typeof taskId !== 'string' || taskId.trim().length === 0) {
       return NextResponse.json({ error: 'taskId is required' }, { status: 400 })
@@ -56,6 +56,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'durationMinutes must be a positive integer' }, { status: 400 })
     }
     const notesValue = notes === undefined || notes === null ? null : typeof notes === 'string' ? notes : null
+
+    let repsDelta = 0
+    if (completedReps !== undefined && completedReps !== null) {
+      if (typeof completedReps !== 'number' || !Number.isInteger(completedReps) || completedReps < 0 || completedReps > 10000) {
+        return NextResponse.json({ error: 'completedReps must be a non-negative integer up to 10000' }, { status: 400 })
+      }
+      repsDelta = completedReps
+    }
 
     const existing = await prisma.task.findUnique({ where: { id: taskId } })
     if (!existing) {
@@ -70,6 +78,9 @@ export async function POST(request: NextRequest) {
 
     // Compute new task status from projected values
     const newTotalFocusMinutes = existing.totalFocusMinutes + durationMinutes
+    const isRepTask = existing.progressType === 'REPS'
+    const effectiveRepsDelta = isRepTask ? repsDelta : 0
+    const newCompletedReps = existing.completedReps + effectiveRepsDelta
     const projectedTask = {
       id: existing.id,
       userId: existing.userId,
@@ -82,8 +93,15 @@ export async function POST(request: NextRequest) {
       status: existing.status as TaskStatus,
       parentTaskId: existing.parentTaskId,
       totalFocusMinutes: newTotalFocusMinutes,
+      progressType: existing.progressType as ProgressType,
+      estimatedMinutes: existing.estimatedMinutes,
+      targetReps: existing.targetReps,
+      completedReps: newCompletedReps,
       lastWateredAt: new Date().toISOString(),
       dueDate: existing.dueDate ? existing.dueDate.toISOString() : null,
+      completedAt: existing.completedAt ? existing.completedAt.toISOString() : null,
+      posX: existing.posX,
+      posY: existing.posY,
       createdAt: existing.createdAt.toISOString(),
       updatedAt: new Date().toISOString(),
     }
@@ -106,6 +124,7 @@ export async function POST(request: NextRequest) {
         where: { id: taskId },
         data: {
           totalFocusMinutes: newTotalFocusMinutes,
+          ...(effectiveRepsDelta > 0 ? { completedReps: { increment: effectiveRepsDelta } } : {}),
           lastWateredAt: new Date(),
           status: newStatus,
         },
@@ -135,13 +154,15 @@ export async function POST(request: NextRequest) {
         longestStreak = existingStreak.longestStreak
       }
 
+      // Prisma needs a Date/full-ISO for DateTime columns — store the moment of this session
+      const now = new Date()
       const newStreak = existingStreak
         ? await tx.wateringStreak.update({
             where: { id: existingStreak.id },
-            data: { currentStreak, longestStreak, lastWateredDate: today },
+            data: { currentStreak, longestStreak, lastWateredDate: now },
           })
         : await tx.wateringStreak.create({
-            data: { userId: auth.userId, currentStreak, longestStreak, lastWateredDate: today },
+            data: { userId: auth.userId, currentStreak, longestStreak, lastWateredDate: now },
           })
 
       return { session: newSession, updatedTask: task, streak: newStreak }

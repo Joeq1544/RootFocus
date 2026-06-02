@@ -33,6 +33,30 @@ export async function verifyToken(token: string): Promise<JwtPayload> {
 }
 
 /**
+ * Signs a short admin-session JWT ({ admin: true }) with a 7-day expiry.
+ * Used by the password-only admin backdoor (see /api/auth/admin).
+ */
+export async function signAdminToken(): Promise<string> {
+  return new SignJWT({ admin: true })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('7d')
+    .sign(secret())
+}
+
+/**
+ * Verifies an admin-session JWT. Returns true only if valid and admin === true.
+ */
+export async function verifyAdminToken(token: string): Promise<boolean> {
+  try {
+    const { payload } = await jwtVerify(token, secret())
+    return payload.admin === true
+  } catch {
+    return false
+  }
+}
+
+/**
  * Extracts the rootfocus-token value from the Cookie header of a Request.
  * Returns null if the cookie is absent.
  */

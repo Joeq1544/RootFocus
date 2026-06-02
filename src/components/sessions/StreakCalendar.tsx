@@ -13,11 +13,11 @@ interface StreakCalendarProps {
 }
 
 function cellColor(minutes: number): string {
-  if (minutes === 0) return 'bg-soil/15'
-  if (minutes <= 25) return 'bg-forest-light/40'
-  if (minutes <= 60) return 'bg-forest-light/70'
-  if (minutes <= 120) return 'bg-forest/80'
-  return 'bg-forest shadow-sm shadow-forest/40'
+  if (minutes === 0) return 'bg-soil/25'
+  if (minutes <= 25) return 'bg-grass-light/60'
+  if (minutes <= 60) return 'bg-grass/80'
+  if (minutes <= 120) return 'bg-grass-dark'
+  return 'bg-forest'
 }
 
 export function StreakCalendar({ dailyData }: StreakCalendarProps) {
@@ -106,14 +106,14 @@ export function StreakCalendar({ dailyData }: StreakCalendarProps) {
                   return (
                     <div
                       key={date}
-                      className={`group relative h-3 w-3 rounded-sm transition-transform hover:scale-125 ${
-                        inWindow ? cellColor(minutes) : 'bg-transparent'
+                      className={`group relative h-3 w-3 rounded-[2px] transition-transform hover:scale-125 ${
+                        inWindow ? `${cellColor(minutes)} shadow-[inset_0_0_0_1px_rgba(0,0,0,0.12)]` : 'bg-transparent'
                       }`}
                     >
                       {inWindow && (
                         <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100">
-                          <div className="whitespace-nowrap rounded-lg bg-forest px-2 py-1.5 text-[10px] leading-tight text-mist shadow-lg">
-                            <p className="font-semibold">{formatDateGroup(date)}</p>
+                          <div className="whitespace-nowrap rounded-[4px] bg-wood px-2 py-1.5 font-pixel text-[10px] leading-tight text-mist shadow-pixel-sm">
+                            <p className="font-bold">{formatDateGroup(date)}</p>
                             {minutes > 0 ? (
                               <>
                                 <p>{formatMinutes(minutes)} focused</p>
@@ -123,7 +123,7 @@ export function StreakCalendar({ dailyData }: StreakCalendarProps) {
                               <p className="text-mist/60">No sessions</p>
                             )}
                           </div>
-                          <div className="mx-auto h-1.5 w-1.5 -translate-y-0.5 rotate-45 bg-forest" />
+                          <div className="mx-auto h-1.5 w-1.5 -translate-y-0.5 rotate-45 bg-wood" />
                         </div>
                       )}
                     </div>
@@ -136,10 +136,10 @@ export function StreakCalendar({ dailyData }: StreakCalendarProps) {
       </div>
 
       {/* Legend */}
-      <div className="mt-3 flex items-center gap-3 text-[10px] text-soil/50">
+      <div className="mt-3 flex items-center gap-2 font-pixel text-[10px] text-bark/60">
         <span>Less</span>
         {[0, 20, 45, 90, 150].map((min) => (
-          <div key={min} className={`h-3 w-3 rounded-sm ${cellColor(min)}`} />
+          <div key={min} className={`h-3 w-3 rounded-[2px] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.12)] ${cellColor(min)}`} />
         ))}
         <span>More</span>
       </div>

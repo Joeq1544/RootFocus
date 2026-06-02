@@ -1,8 +1,9 @@
 'use client'
 
-import { PlotWithTasks } from '@/types'
-import { Plant } from './Plant'
-import { Pot } from './Pot'
+import { PlotWithTasks, TaskWithHealth } from '@/types'
+import { Pos } from '@/lib/garden-layout'
+import { Sprout, Plus, Grid3x3, Maximize2, Pencil } from 'lucide-react'
+import { SoilCanvas } from './SoilCanvas'
 import { PlotIcon } from './PlotIcon'
 import { PlotColorDot } from './PlotColorDot'
 
@@ -10,35 +11,48 @@ interface GardenPlotProps {
   plot: PlotWithTasks
   onAddPlant: (plotId: string) => void
   onAddPot: (plotId: string) => void
-  onAddSubtask: (potId: string, potDueDate?: string) => void
   onEditPlot: (plotId: string) => void
+  onZoomPlot: (plotId: string) => void
+  onZoomPot: (task: TaskWithHealth) => void
+  onMoveTask: (taskId: string, pos: Pos) => void
+  onToggleGridSnap: (plotId: string, value: boolean) => void
   onComplete: (taskId: string) => void
   onDelete: (taskId: string) => void
   onConvertToPot: (taskId: string) => void
+  onLogReps: (taskId: string, delta: number) => Promise<void>
+  onLogMinutes: (taskId: string, delta: number) => Promise<void>
 }
+
+const ICON_BTN =
+  'flex h-8 w-8 items-center justify-center rounded-[4px] text-mist shadow-pixel-sm transition-transform active:translate-y-0.5'
 
 export function GardenPlot({
   plot,
   onAddPlant,
   onAddPot,
-  onAddSubtask,
   onEditPlot,
+  onZoomPlot,
+  onZoomPot,
+  onMoveTask,
+  onToggleGridSnap,
   onComplete,
   onDelete,
   onConvertToPot,
+  onLogReps,
+  onLogMinutes,
 }: GardenPlotProps) {
   return (
-    <section className="raised-bed p-6 pt-5">
-      {/* Header */}
-      <header className="relative z-10 mb-3 flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
+    <section className="raised-bed p-5 pt-4">
+      {/* Header — wooden sign plate */}
+      <header className="relative z-10 mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2 rounded-[4px] bg-bark/25 px-2.5 py-1 shadow-[inset_0_0_0_2px_rgba(0,0,0,0.18)]">
           <PlotColorDot slug={plot.color} className="h-3 w-3 shrink-0" />
           <PlotIcon slug={plot.icon} className="h-4 w-4 shrink-0 text-mist" />
           <div className="min-w-0">
-            <h3 className="font-playfair truncate text-base font-bold text-mist drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+            <h3 className="truncate font-pixel text-base font-bold text-mist drop-shadow-[1px_1px_0_rgba(0,0,0,0.5)]">
               {plot.name}
             </h3>
-            <p className="text-[11px] text-mist/70">
+            <p className="font-pixel text-[10px] text-mist/70">
               {plot.tasks.length} {plot.tasks.length === 1 ? 'plant' : 'plants'}
             </p>
           </div>
@@ -48,75 +62,63 @@ export function GardenPlot({
           <button
             type="button"
             onClick={() => onAddPlant(plot.id)}
-            className="flex h-8 items-center gap-1 rounded-full border border-mist/40 bg-sunrise/80 px-2.5 text-[11px] font-semibold text-soil shadow-md backdrop-blur-sm transition hover:bg-sunrise"
-            aria-label={`Add plant to ${plot.name}`}
+            className="flex h-8 items-center gap-1 rounded-[4px] bg-sunrise px-2.5 font-pixel text-[11px] font-bold text-bark shadow-pixel-sm transition-transform active:translate-y-0.5"
             title="Add Plant"
           >
-            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
-              <path d="M12 5v14 M5 12h14" />
-            </svg>
+            <Sprout className="h-3.5 w-3.5" strokeWidth={2.5} />
             Plant
           </button>
           <button
             type="button"
             onClick={() => onAddPot(plot.id)}
-            className="flex h-8 items-center gap-1 rounded-full border border-mist/40 bg-soil/30 px-2.5 text-[11px] font-semibold text-mist shadow-md backdrop-blur-sm transition hover:bg-soil"
-            aria-label={`Add pot to ${plot.name}`}
+            className="flex h-8 items-center gap-1 rounded-[4px] bg-clay px-2.5 font-pixel text-[11px] font-bold text-mist shadow-pixel-sm transition-transform active:translate-y-0.5"
             title="Add Pot"
           >
-            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden="true">
-              <path d="M5 9h14l-2 11H7L5 9z M3 7h18v2H3z" />
-            </svg>
+            <Plus className="h-3.5 w-3.5" strokeWidth={3} />
             Pot
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onToggleGridSnap(plot.id, !plot.gridSnap)}
+            className={`${ICON_BTN} ${plot.gridSnap ? 'bg-sunrise text-bark' : 'bg-wood-light'}`}
+            aria-pressed={plot.gridSnap}
+            title={plot.gridSnap ? 'Grid snap on' : 'Grid snap off'}
+          >
+            <Grid3x3 className="h-4 w-4" strokeWidth={2.5} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onZoomPlot(plot.id)}
+            className={`${ICON_BTN} bg-wood-light`}
+            title="Expand plot"
+          >
+            <Maximize2 className="h-4 w-4" strokeWidth={2.5} />
           </button>
           <button
             type="button"
             onClick={() => onEditPlot(plot.id)}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-mist/40 bg-soil/30 text-mist shadow-md backdrop-blur-sm transition hover:bg-soil"
-            aria-label={`Edit ${plot.name}`}
+            className={`${ICON_BTN} bg-wood-light`}
             title="Plot settings"
           >
-            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
-              <circle cx="5" cy="12" r="2" />
-              <circle cx="12" cy="12" r="2" />
-              <circle cx="19" cy="12" r="2" />
-            </svg>
+            <Pencil className="h-4 w-4" strokeWidth={2.5} />
           </button>
         </div>
       </header>
 
-      {/* Soil interior */}
-      <div className="soil-bed relative min-h-[160px] p-4">
-        {plot.tasks.length === 0 ? (
-          <div className="flex h-full min-h-[140px] items-center justify-center rounded-lg border-2 border-dashed border-mist/20 bg-black/10 px-4 py-6 text-center">
-            <p className="text-sm italic text-mist/60">Plant something new...</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-            {plot.tasks.map((task) =>
-              task.isPot ? (
-                <Pot
-                  key={task.id}
-                  task={task}
-                  onAddSubtask={onAddSubtask}
-                  onComplete={onComplete}
-                  onDelete={onDelete}
-                  onCompleteSubtask={onComplete}
-                  onDeleteSubtask={onDelete}
-                />
-              ) : (
-                <Plant
-                  key={task.id}
-                  task={task}
-                  onComplete={onComplete}
-                  onDelete={onDelete}
-                  onConvertToPot={onConvertToPot}
-                />
-              ),
-            )}
-          </div>
-        )}
-      </div>
+      {/* Soil interior — spatial canvas */}
+      <SoilCanvas
+        tasks={plot.tasks}
+        gridSnap={plot.gridSnap}
+        onMoveTask={onMoveTask}
+        onComplete={onComplete}
+        onDelete={onDelete}
+        onConvertToPot={onConvertToPot}
+        onLogReps={onLogReps}
+        onLogMinutes={onLogMinutes}
+        onZoomPot={onZoomPot}
+        className="aspect-[4/3]"
+      />
     </section>
   )
 }

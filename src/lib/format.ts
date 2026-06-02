@@ -18,12 +18,14 @@ export function formatRelativeTime(date: string | null): string {
  * Returns a time-of-day greeting, e.g. "Good morning, Joe".
  * Hours: 5–11 morning, 12–17 afternoon, otherwise evening.
  */
-export function getGreeting(username: string, now: Date = new Date()): string {
+export function getGreeting(displayName: string, now: Date = new Date()): string {
   const hour = now.getHours()
   let part = 'evening'
   if (hour >= 5 && hour < 12) part = 'morning'
   else if (hour >= 12 && hour < 18) part = 'afternoon'
-  return `Good ${part}, ${username}`
+  // Address by the first word of the display name.
+  const firstName = displayName.trim().split(/\s+/)[0] || displayName
+  return `Good ${part}, ${firstName}`
 }
 
 /**

@@ -5,14 +5,12 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<NonNullable<ButtonProps['variant']>, string> = {
-  primary:
-    'bg-forest text-white hover:bg-forest-dark disabled:opacity-50',
-  secondary:
-    'bg-sunrise text-soil hover:bg-sunrise-light disabled:opacity-50',
-  ghost:
-    'border-2 border-forest text-forest hover:bg-forest hover:text-white disabled:opacity-50',
+  primary: 'bg-forest text-mist hover:bg-forest-light disabled:opacity-50',
+  secondary: 'bg-sunrise text-bark hover:bg-sunrise-light disabled:opacity-50',
+  ghost: 'bg-panel text-bark hover:bg-panel-soft disabled:opacity-50',
 }
 
+/** Chunky pixel button: hard border + offset shadow, presses down on click. */
 export function Button({
   variant = 'primary',
   className = '',
@@ -21,7 +19,7 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
-      className={`inline-flex items-center justify-center rounded-full px-6 py-2.5 font-semibold transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-forest/40 focus:ring-offset-2 ${variantClasses[variant]} ${className}`}
+      className={`pixel-btn inline-flex items-center justify-center px-5 py-2 font-pixel text-sm font-semibold tracking-wide transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-sunrise/70 disabled:cursor-not-allowed ${variantClasses[variant]} ${className}`}
       {...props}
     >
       {children}
